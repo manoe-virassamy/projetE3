@@ -21,6 +21,7 @@ import platform
 import subprocess
 import threading
 import unicodedata
+from typing import Optional
 
 # ============================================================
 #  MOTEUR TEXT-TO-SPEECH (voix de sortie)
@@ -145,12 +146,15 @@ class EcouteurVocal:
     def _initialiser(self):
         try:
             import speech_recognition as sr
+            # Vérifie aussi que pyaudio est accessible (nécessaire pour Microphone)
+            import pyaudio
             self.sr         = sr
             self.disponible = True
-        except ImportError:
-            pass
+        except ImportError as e:
+            print(f"  [Micro] Module manquant : {e}", file=sys.stderr)
+            print("  → pip install SpeechRecognition pyaudio", file=sys.stderr)
 
-    def ecouter(self, vocal_out: MoteurVocal) -> str | None:
+    def ecouter(self, vocal_out: "MoteurVocal") -> Optional[str]:
         """
         Écoute le micro, retourne le texte détecté (str)
         ou None si rien n'a été capté / reconnu.
@@ -160,19 +164,25 @@ class EcouteurVocal:
 
         sr = self.sr
         rec = sr.Recognizer()
-        rec.pause_threshold      = 1.0   # secondes de silence avant fin
+        rec.pause_threshold          = 1.0   # secondes de silence avant fin
         rec.dynamic_energy_threshold = True
 
         print("  [Micro] J'écoute... (parlez maintenant)")
 
-        with sr.Microphone() as source:
-            # Calibration rapide du bruit ambiant
-            rec.adjust_for_ambient_noise(source, duration=0.5)
-            try:
-                audio = rec.listen(source, timeout=8, phrase_time_limit=15)
-            except sr.WaitTimeoutError:
-                print("  [Micro] Aucune voix détectée.")
-                return None
+        try:
+            with sr.Microphone() as source:
+                # Calibration rapide du bruit ambiant
+                rec.adjust_for_ambient_noise(source, duration=0.5)
+                try:
+                    audio = rec.listen(source, timeout=8, phrase_time_limit=15)
+                except sr.WaitTimeoutError:
+                    print("  [Micro] Aucune voix détectée (timeout).")
+                    return None
+        except OSError as e:
+            # pyaudio installé mais aucun micro disponible sur le système
+            print(f"  [Micro] Impossible d'accéder au microphone : {e}", file=sys.stderr)
+            print("  → Vérifiez que votre micro est branché et autorisé.", file=sys.stderr)
+            return None
 
         # Tentative 1 : Google (en ligne, meilleure précision)
         try:
@@ -389,60 +399,114 @@ def trouver_reponse(message: str) -> str:
 #  INTERFACE PRINCIPALE
 # ============================================================
 
-def afficher_banniere(vocal: MoteurVocal, ecouteur: EcouteurVocal):
+def choisir_mode(vocal: MoteurVocal, ecouteur: EcouteurVocal) -> str:
+    """
+    Affiche un menu de démarrage et retourne le mode choisi :
+    'micro' ou 'texte'.
+    Si la reconnaissance vocale n'est pas disponible, force le mode texte.
+    """
     print("=" * 60)
     print("  🧗  ASSISTANT ESCALADE ADAPTÉ  🧗")
     print("  Pour les personnes aveugles et malvoyantes")
     print("=" * 60)
     print(f"  {vocal.info()}")
     print(f"  {ecouteur.info()}")
-    print()
-    if ecouteur.disponible:
-        print("  MODE VOCAL ACTIF")
-        print("  → Appuyez sur ENTRÉE pour parler")
-        print("  → Ou tapez votre question directement")
-    else:
-        print("  MODE TEXTE (reconnaissance vocale non disponible)")
-        print("  → Tapez vos questions au clavier")
-    print()
-    print("  Dites ou tapez 'au revoir' pour terminer.")
     print("=" * 60)
     print()
 
-    intro = (
-        "Bonjour. Je suis votre assistant escalade pour les personnes "
-        "aveugles et malvoyantes. "
-        + ("Appuyez sur Entrée pour parler, ou tapez votre question."
-           if ecouteur.disponible else
-           "Tapez votre question.")
+    if not ecouteur.disponible:
+        print("  Reconnaissance vocale non disponible.")
+        print("  Démarrage automatique en MODE TEXTE.\n")
+        vocal.dire("Mode texte activé. Tapez votre question.")
+        return "texte"
+
+    # ── Menu de choix ────────────────────────────────────────
+    vocal.dire(
+        "Bonjour. Choisissez votre mode d'interaction. "
+        "Tapez 1 pour utiliser le microphone, ou 2 pour taper au clavier."
     )
-    vocal.dire(intro)
+
+    print("  Comment voulez-vous interagir avec l'assistant ?")
+    print()
+    print("    1  →  🎤  MICROPHONE  (parler à voix haute)")
+    print("    2  →  ⌨️   CLAVIER     (taper les questions)")
+    print()
+
+    while True:
+        try:
+            choix = input("  Votre choix (1 ou 2) : ").strip()
+        except (EOFError, KeyboardInterrupt):
+            choix = "2"
+
+        if choix == "1":
+            print()
+            print("  MODE MICROPHONE activé.")
+            print("  → Appuyez sur ENTRÉE pour activer le micro à chaque question.")
+            print("  → Ou tapez directement si vous préférez.")
+            print("  → Dites ou tapez 'au revoir' pour terminer.")
+            print()
+            vocal.dire("Mode microphone activé. Appuyez sur Entrée pour parler.")
+            return "micro"
+
+        elif choix == "2":
+            print()
+            print("  MODE CLAVIER activé.")
+            print("  → Tapez vos questions et appuyez sur ENTRÉE.")
+            print("  → Tapez 'au revoir' pour terminer.")
+            print()
+            vocal.dire("Mode clavier activé. Tapez votre question.")
+            return "texte"
+
+        else:
+            print("  Entrez 1 pour le micro ou 2 pour le clavier.")
+            vocal.dire("Entrez 1 pour le microphone ou 2 pour le clavier.")
 
 
-def obtenir_message(ecouteur: EcouteurVocal, vocal: MoteurVocal) -> str | None:
+def obtenir_message(mode: str, ecouteur: EcouteurVocal, vocal: MoteurVocal) -> Optional[str]:
     """
-    Demande une saisie à l'utilisateur.
-    - Si l'utilisateur appuie sur ENTRÉE sans rien taper → écoute le micro.
-    - Sinon → utilise le texte tapé.
-    Retourne None en cas d'interruption.
+    Récupère le message selon le mode choisi.
+    Mode 'micro'  : ENTRÉE vide → écoute micro, sinon utilise le texte tapé.
+    Mode 'texte'  : saisie clavier uniquement.
+    Retourne None en cas d'interruption (Ctrl+C).
     """
     try:
-        if ecouteur.disponible:
+        if mode == "micro":
             saisie = input("Vous [ENTRÉE=micro / ou tapez] : ").strip()
         else:
             saisie = input("Vous : ").strip()
     except (EOFError, KeyboardInterrupt):
         return None
 
-    # Entrée vide → activation du micro
-    if saisie == "" and ecouteur.disponible:
+    # Mode micro + ENTRÉE vide → activation du micro
+    if mode == "micro" and saisie == "":
+
+        # ── CORRECTION 1 : vérifier la dispo avant d'appeler le micro ──
+        if not ecouteur.disponible:
+            msg = "Microphone non disponible. Tapez votre question ou vérifiez l'installation de pyaudio."
+            print(f"\n  ⚠️  {msg}\n")
+            vocal.dire(msg)
+            return ""   # reboucle proprement
+
         vocal.dire("Je vous écoute.")
-        message_vocal = ecouteur.ecouter(vocal)
+
+        # ── CORRECTION 2 : encadrer l'appel micro dans un try/except ──
+        try:
+            message_vocal = ecouteur.ecouter(vocal)
+        except Exception as e:
+            print(f"  [Micro] Erreur inattendue : {e}", file=sys.stderr)
+            msg = "Erreur du microphone. Vérifiez qu'il est bien branché et réessayez."
+            print(f"\n  ⚠️  {msg}\n")
+            vocal.dire(msg)
+            return ""   # reboucle proprement
+
         if message_vocal:
             return message_vocal
-        else:
-            vocal.dire("Je n'ai pas entendu. Veuillez réessayer ou taper votre question.")
-            return ""   # boucle continue
+
+        # ── CORRECTION 3 : feedback clair quand rien n'est entendu ──
+        msg = "Je n'ai pas entendu. Appuyez sur Entrée pour réessayer, ou tapez votre question."
+        print(f"\n  ℹ️  {msg}\n")
+        vocal.dire("Je n'ai pas entendu. Réessayez ou tapez votre question.")
+        return ""   # reboucle, pas de sortie silencieuse
 
     return saisie
 
@@ -451,18 +515,31 @@ def lancer_chatbot():
     vocal    = MoteurVocal()
     ecouteur = EcouteurVocal()
 
-    afficher_banniere(vocal, ecouteur)
+    # ── Choix du mode au démarrage ───────────────────────────
+    mode = choisir_mode(vocal, ecouteur)
 
     while True:
-        message = obtenir_message(ecouteur, vocal)
+        message = obtenir_message(mode, ecouteur, vocal)
 
-        if message is None:                      # Ctrl+C / EOF
+        if message is None:          # Ctrl+C / EOF
             msg_fin = "À bientôt !"
             print(f"\nChatbot : {msg_fin}\n")
             vocal.dire(msg_fin)
             break
 
-        if not message:                          # rien capté au micro
+        if not message:              # rien capté au micro → reboucle
+            continue
+
+        # Commande spéciale : changer de mode en cours de session
+        if normaliser(message) in ("changer mode", "changer le mode", "switch"):
+            if mode == "micro":
+                mode = "texte"
+                msg = "Mode clavier activé."
+            else:
+                mode = "micro"
+                msg = "Mode microphone activé. Appuyez sur Entrée pour parler."
+            print(f"\nChatbot : {msg}\n")
+            vocal.dire(msg)
             continue
 
         if normaliser(message) in {normaliser(m) for m in MOTS_SORTIE}:
