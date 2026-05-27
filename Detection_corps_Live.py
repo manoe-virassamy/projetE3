@@ -52,8 +52,18 @@ with mp_pose.Pose(
         if results.pose_landmarks:
             landmarks = results.pose_landmarks.landmark
 
-            # Dessin direct avec OpenCV (Rapide)
+            coordonnees_pixels = {}
 
+        for idx, landmark in enumerate(results.pose_landmarks.landmark):
+            # On convertit en pixels
+            cx = int(landmark.x * w)
+            cy = int(landmark.y * h)
+            
+            # On range ça dans un dictionnaire avec l'index du point
+            coordonnees_pixels[idx] = (cx, cy)
+
+            
+            # Dessin direct avec OpenCV (Rapide)
             pt_min = 11
             pt_max = 32
 
