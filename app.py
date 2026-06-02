@@ -2,6 +2,65 @@ import streamlit as st
 import cv2
 import tempfile
 from detect import detect_image
+from Detection_corps_Live import detect_corps
+from path import trouver_prochaine_prise
+
+
+def run_live():
+
+    cap = cv2.VideoCapture(0)
+
+    frame_placeholder = st.empty()  # Streamlit image dynamique
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # ✅ flip (comme ton code actuel)
+        frame = cv2.flip(frame, 1)
+
+        # ======================
+        # 1. prises
+        # ======================
+        prises = detect_prises(frame)
+
+        for (px, py) in prises:
+            cv2.circle(frame, (px, py), 5, (0, 255, 0), -1)
+
+        # ======================
+        # 2. corps
+        # ======================
+        main_droite, main_gauche = detect_corps(frame)
+
+        if main_droite:
+            cv2.circle(frame, main_droite, 8, (255, 0, 0), -1)
+
+        if main_gauche:
+            cv2.circle(frame, main_gauche, 8, (255, 0, 0), -1)
+
+        # ======================
+        # 3. parcours
+        # ======================
+        prise_cible, main_utilisee = trouver_prochaine_prise(
+            main_droite,
+            main_gauche,
+            prises
+        )
+
+        if prise_cible and main_utilisee:
+            px, py = prise_cible
+            mx, my = main_utilisee
+
+            cv2.circle(frame, (px, py), 10, (0, 255, 255), -1)
+            cv2.line(frame, (mx, my), (px, py), (0, 255, 255), 3)
+
+        # ======================
+        # 4. affichage Streamlit
+        # ======================
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame_placeholder.image(frame_rgb)
+
 
 st.title("Détection de prises d'escalades")
 
@@ -30,6 +89,10 @@ if uploaded_file is not None:
 
     # Afficher l'image originale
     st.image(uploaded_file, caption="Image originale")
+
+     # Lancer la détection en live 
+    if st.button("Lancer le mode live"):
+        run_live()
 
     # Lancer la détection
     if st.button("Lancer la détection"):

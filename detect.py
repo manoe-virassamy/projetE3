@@ -1,8 +1,10 @@
 from ultralytics import YOLO
 import cv2
 import numpy as np
+import os 
+import requests
 
-# Charger modèle entrainé 
+# Charger le modèle
 model = YOLO("best.pt")
 
 # Détection
