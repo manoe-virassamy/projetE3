@@ -1,0 +1,82 @@
+import time
+import urllib.request
+import cv2
+import mediapipe as mp
+
+# 1. Définition des liaisons du corps (identique à notre logique précédente)
+LIAISONS_CORPS = [
+    (11, 12), (11, 13), (13, 15), (12, 14), (14, 16),
+    (11, 23), (12, 24), (23, 24),
+    (23, 25), (25, 27), (24, 26), (26, 28),
+    (27, 31), (28, 32), (27, 29), (28, 30),
+    (15, 17), (15, 19), (15, 21), (17, 19),
+    (16, 18), (16, 20), (16, 22), (18, 20)
+]
+
+# Téléchargement automatique du modèle si absent
+model_path = "pose_landmarker_full.task"
+try:
+    with open(model_path, "rb"): pass
+except FileNotFoundError:
+    print("Téléchargement du modèle IA MediaPipe Tasks...")
+    url = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task"
+    urllib.request.urlretrieve(url, model_path)
+
+# 2. Configuration de MediaPipe Tasks
+BaseOptions = mp.tasks.BaseOptions
+PoseLandmarker = mp.tasks.vision.PoseLandmarker
+PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
+VisionRunningMode = mp.tasks.vision.RunningMode
+
+# Options de configuration de l'IA
+options = PoseLandmarkerOptions(
+    base_options=BaseOptions(model_asset_path=model_path),
+    running_mode=VisionRunningMode.VIDEO # Mode spécifique pour le flux webcam
+)
+
+cap = cv2.VideoCapture(0)
+
+# Ouverture de l'analyseur
+with PoseLandmarker.create_from_options(options) as landmarker:
+    
+    while cap.isOpened():
+        success, frame = cap.read()
+        if not success: break
+
+        frame = cv2.flip(frame, 1)
+        h, w, _ = frame.shape
+
+        # Convertir l'image au format spécifique de MediaPipe Tasks
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
+        
+        # Tasks a besoin du "Timestamp" (le temps exact en millisecondes de la frame)
+        timestamp_ms = int(time.time() * 1000)
+        
+        # Analyse de la frame
+        detection_result = landmarker.detect_for_video(mp_image, timestamp_ms)
+
+        # 3. Dessin des résultats s'il y a une détection
+        if detection_result.pose_landmarks:
+            # Tasks renvoie une liste de personnes détectées. On prend la première [0]
+            landmarks = detection_result.pose_landmarks[0]
+
+            # Dessin des lignes (Uniquement le corps)
+            for p1, p2 in LIAISONS_CORPS:
+                if landmarks[p1].visibility > 0.5 and landmarks[p2].visibility > 0.5:
+                    pt1 = (int(landmarks[p1].x * w), int(landmarks[p1].y * h))
+                    pt2 = (int(landmarks[p2].x * w), int(landmarks[p2].y * h))
+                    cv2.line(frame, pt1, pt2, (255, 255, 0), 3)
+
+            # Dessin des points (On commence à 11 pour ignorer le visage)
+            for idx in range(11, 33):
+                if landmarks[idx].visibility > 0.5:
+                    cx, cy = int(landmarks[idx].x * w), int(landmarks[idx].y * h)
+                    cv2.circle(frame, (cx, cy), 6, (0, 255, 255), -1)
+
+        cv2.imshow("MediaPipe Tasks - Live", frame)
+
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+
+cap.release()
+cv2.destroyAllWindows()
