@@ -1,4 +1,4 @@
-#%pip install "numpy<2" "mediapipe==0.10.21" "opencv-python==4.8.1.78" --user --force-reinstall
+#python -m pip install numpy<2 mediapipe==0.10.21 opencv-python==4.8.1.78 --force-reinstall
 
 import cv2
 import mediapipe as mp
