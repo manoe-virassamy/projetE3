@@ -266,6 +266,16 @@ class EcouteurVocal:
 # ============================================================
 
 REPONSES = [
+
+    {
+        "mots_cles":["combien", "reste", "finir", "fin"],
+        "reponse": (
+            "Il vous reste ... de prises\n",
+            "Vous pouvez le faire, vous en êtes tout à fait capable."
+        )
+
+    
+    },
     {
         "mots_cles": ["bonjour", "salut", "hello", "bonsoir", "coucou"],
         "reponse": (
