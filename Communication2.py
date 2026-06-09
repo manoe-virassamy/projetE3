@@ -267,6 +267,99 @@ class EcouteurVocal:
 
 REPONSES = [
 
+
+
+    {
+        "mots_cles": ["échauffement", "echauffement", "chauffer", "préparation", "preparation"],
+        "reponse": (
+            "ÉCHAUFFEMENT — Prépare ton corps.\n"
+            "Effectue quelques mouvements des épaules, poignets et chevilles.\n"
+            "Commence par des voies faciles pour activer les muscles progressivement.\n"
+            "Un bon échauffement réduit le risque de blessure et améliore les performances."
+        )
+    },
+    {
+        "mots_cles": ["technique", "position", "équilibre", "equilibre"],
+        "reponse": (
+            "TECHNIQUE — Grimpe avec les jambes.\n"
+            "Les jambes sont plus puissantes que les bras.\n"
+            "Cherche ton équilibre avant de tirer sur les prises.\n"
+            "Garde les bras détendus autant que possible pour économiser ton énergie."
+        )
+    },
+    {
+        "mots_cles": ["fatigue", "repos", "pause", "récupération", "recuperation"],
+        "reponse": (
+            "RÉCUPÉRATION — Écoute ton corps.\n"
+            "Prends des pauses régulières entre les essais.\n"
+            "Hydrate-toi fréquemment.\n"
+            "Si tes avant-bras sont très congestionnés, repose-toi avant de repartir."
+        )
+    },
+    {
+        "mots_cles": ["peur", "vertige", "stress", "confiance"],
+        "reponse": (
+            "GESTION DU STRESS — Reste concentré.\n"
+            "Regarde les prises suivantes plutôt que le vide sous toi.\n"
+            "Respire calmement et communique avec ton assureur.\n"
+            "La confiance se construit progressivement avec la pratique."
+        )
+    },
+    {
+        "mots_cles": ["chute", "tomber", "vol", "tombe"],
+        "reponse": (
+            "CHUTE — Quelques conseils.\n"
+            "Préviens ton assureur avant de te laisser tomber.\n"
+            "Écarte-toi du mur avec les pieds pour éviter les chocs.\n"
+            "Garde les jambes légèrement fléchies lors de la réception dans le baudrier."
+        )
+    },
+    {
+        "mots_cles": ["lecture", "voie", "itinéraire", "itineraire"],
+        "reponse": (
+            "LECTURE DE VOIE — Anticipe tes mouvements.\n"
+            "Observe la voie depuis le sol avant de partir.\n"
+            "Repère les prises de mains et de pieds importantes.\n"
+            "Prévoir son itinéraire permet d'économiser beaucoup d'énergie."
+        )
+    },
+    {
+        "mots_cles": ["magnésie", "magnesie", "mains", "adhérence", "adherence"],
+        "reponse": (
+            "ADHÉRENCE — Optimise ton grip.\n"
+            "Utilise la magnésie avec modération.\n"
+            "Essuie la transpiration de tes mains si nécessaire.\n"
+            "La précision des placements compte souvent plus que la force."
+        )
+    },
+    {
+        "mots_cles": ["débutant", "debutant", "commencer", "première fois", "premiere fois"],
+        "reponse": (
+            "DÉBUTANT — Prends ton temps.\n"
+            "Concentre-toi d'abord sur les mouvements simples et l'équilibre.\n"
+            "N'hésite pas à demander conseil aux encadrants.\n"
+            "Chaque grimpeur progresse à son rythme."
+        )
+    },
+    {
+        "mots_cles": ["matériel", "materiel", "baudrier", "corde", "équipement", "equipement"],
+        "reponse": (
+            "MATÉRIEL — Vérification essentielle.\n"
+            "Contrôle l'état du baudrier, de la corde et du système d'assurage.\n"
+            "Assure-toi que tous les réglages sont correctement effectués.\n"
+            "En cas de doute, demande une vérification à un encadrant."
+        )
+    },
+    {
+        "mots_cles": ["performance", "progresser", "progression", "niveau"],
+        "reponse": (
+            "PROGRESSION — Grimpe intelligemment.\n"
+            "Travaille régulièrement des voies légèrement au-dessus de ton niveau.\n"
+            "Analyse tes erreurs et tes réussites.\n"
+            "La technique est souvent plus importante que la force brute."
+        )
+    },
+
     {
         "mots_cles":["combien", "reste", "finir", "fin"],
         "reponse": (
