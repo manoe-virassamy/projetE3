@@ -278,6 +278,16 @@ REPONSES = [
             "Un bon échauffement réduit le risque de blessure et améliore les performances."
         )
     },
+     {
+        "mots_cles": ["descente", "redescendre", "descendre", "rappel", "moulinette"],
+        "reponse": (
+            "DESCENTE — Communique clairement.\n"
+            "Préviens ton assureur avec le signal convenu : OK DESCEND.\n"
+            "Lâche progressivement le mur, sans te brusquer.\n"
+            "Garde les pieds légèrement fléchis pour amortir le contact avec le mur.\n"
+            "Signale quand tes pieds touchent le sol pour que l'assureur relâche la tension."
+        )
+    },
     {
         "mots_cles": ["technique", "position", "équilibre", "equilibre"],
         "reponse": (
