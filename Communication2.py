@@ -281,22 +281,17 @@ REPONSES = [
      {
         "mots_cles": ["descente", "redescendre", "descendre", "rappel", "moulinette"],
         "reponse": (
-            "DESCENTE — Communique clairement.\n"
-            "Préviens ton assureur avec le signal convenu : OK DESCEND.\n"
-            "Lâche progressivement le mur, sans te brusquer.\n"
-            "Garde les pieds légèrement fléchis pour amortir le contact avec le mur.\n"
-            "Signale quand tes pieds touchent le sol pour que l'assureur relâche la tension."
+            "Pour descendre, préviens ton assureur avec le signal convenu.\n"
+            "Garde les jambes légèrement fléchies.\n"
+            "Signale quand tes pieds touchent le sol."
         )
     },
     {
         "mots_cles": ["douleur", "doigt", "tendon", "blessure", "mal", "bobo"],
         "reponse": (
-            "DOULEUR — Arrête-toi et écoute ton corps.\n"
-            "Une douleur aux doigts ou aux tendons est un signal d'alarme sérieux.\n"
-            "Redescends immédiatement si tu ressens une douleur vive.\n"
-            "Ne force jamais sur une articulation douloureuse.\n"
-            "Consulte un médecin du sport en cas de douleur persistante.\n"
-            "La règle d'or : une blessure ignorée prend deux fois plus de temps à guérir."
+            "Si tu as mal, arrête-toi et redescends.\n"
+            "Ne force jamais sur une douleur vive.\n"
+            "Consulte un médecin si la douleur dure."
         )
     },
     {
@@ -306,6 +301,14 @@ REPONSES = [
             "Les jambes sont plus puissantes que les bras.\n"
             "Cherche ton équilibre avant de tirer sur les prises.\n"
             "Garde les bras détendus autant que possible pour économiser ton énergie."
+        )
+    },
+    {
+        "mots_cles": ["sensation", "toucher", "tactile", "explorer", "palper"],
+        "reponse": (
+            "Avant chaque mouvement, explore la zone à portée de main.\n"
+            "Sens la taille et l'orientation de chaque prise.\n"
+            "Tes mains et tes pieds sont tes yeux sur le mur."
         )
     },
     {
