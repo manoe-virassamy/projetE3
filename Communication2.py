@@ -289,6 +289,17 @@ REPONSES = [
         )
     },
     {
+        "mots_cles": ["douleur", "doigt", "tendon", "blessure", "mal", "bobo"],
+        "reponse": (
+            "DOULEUR — Arrête-toi et écoute ton corps.\n"
+            "Une douleur aux doigts ou aux tendons est un signal d'alarme sérieux.\n"
+            "Redescends immédiatement si tu ressens une douleur vive.\n"
+            "Ne force jamais sur une articulation douloureuse.\n"
+            "Consulte un médecin du sport en cas de douleur persistante.\n"
+            "La règle d'or : une blessure ignorée prend deux fois plus de temps à guérir."
+        )
+    },
+    {
         "mots_cles": ["technique", "position", "équilibre", "equilibre"],
         "reponse": (
             "TECHNIQUE — Grimpe avec les jambes.\n"
