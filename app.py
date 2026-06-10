@@ -8,7 +8,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from detect import detect_image
 from detection_task import detect_corps
 from path import trouver_prises_par_membre
-from Communication2 import MoteurVocal, EcouteurVocal, trouver_reponse
+from communication import MoteurVocal, EcouteurVocal, trouver_reponse
 from streamlit_image_coordinates import streamlit_image_coordinates
 
 
