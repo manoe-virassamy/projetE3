@@ -1,49 +1,94 @@
-import cv2
-from ultralytics import YOLO
-import mediapipe as mp
+import math
 
-# Charger le modèle de prises 
-model = YOLO("best.pt")
+# Portée maximale en pixels (vidéo 480x360, grimpeur à ~2m de la caméra)
+# Un bras tendu ≈ 90cm ≈ 210px ; une jambe ≈ 80cm ≈ 190px
+PORTEE_MAIN = 220
+PORTEE_PIED = 190
+MARGE_MIN   = 20    # distance minimale (prise déjà sous le membre)
 
-def trouver_prochaine_prise(main_droite, main_gauche, prises):
+
+def trouver_prises_par_membre(membres, prises):
     """
-    main_droite : (x, y) ou None
-    main_gauche : (x, y) ou None
-    prises : liste de tuples [(x, y), ...]
+    Pour un grimpeur aveugle : retourne la prise atteignable la plus proche
+    pour chaque membre, en respectant :
+      - l'usage  : mains → 'Mains', pieds → 'Pieds'
+      - la portée physique du membre
+      - la direction : mains vers le haut / pieds sous le niveau des mains
 
-    retourne :
-        meilleure prise (x, y) ou None
+    Paramètres
+    ----------
+    membres : dict  { 'main_droite' | 'main_gauche' | 'pied_droit' | 'pied_gauche'
+                      → (x, y) | None }
+    prises  : list  [ {'coords': (cx, cy), 'usage': 'Mains'|'Pieds'} ]
+
+    Retourne
+    --------
+    dict  membre → (px, py) | None
     """
+    suggestions = {k: None for k in membres}
 
-    candidates = []
+    # Hauteur moyenne des mains → les pieds ne peuvent pas monter au-dessus
+    ys_mains = [membres[k][1] for k in ('main_droite', 'main_gauche')
+                if membres.get(k)]
+    y_mains = sum(ys_mains) / len(ys_mains) if ys_mains else None
 
-    # ✅ tester les deux mains
-    for main in [main_droite, main_gauche]:
-
-        if main is None:
+    for membre, pos in membres.items():
+        if pos is None:
             continue
 
-        mx, my = main
+        mx, my    = pos
+        est_main  = 'main' in membre
+        usage_ok  = 'Mains' if est_main else None   # pieds : toutes les prises
+        portee    = PORTEE_MAIN if est_main else PORTEE_PIED
 
-        for (px, py) in prises:
+        meilleur      = None
+        meilleure_dist = float('inf')
 
-            # ✅ uniquement les prises au-dessus
-            if py < my:
+        for p in prises:
+            px, py = p['coords']
 
-                distance = ((px - mx)**2 + (py - my)**2)**0.5
+            # Mauvais type de prise
+            if usage_ok is not None and p.get('usage', 'Mains') != usage_ok:
+                continue
 
-                # ✅ filtre distance
-                if distance < 200:
-                    candidates.append((distance, px, py, mx, my))
+            dist = math.hypot(px - mx, py - my)
 
-    if candidates:
-        candidates.sort()
+            # Hors portée physique
+            if dist < MARGE_MIN or dist > portee:
+                continue
 
-        # retourne (prise + main utilisée)
-        _, px, py, mx, my = candidates[0]
+            if est_main:
+                # Mains : viser uniquement des prises au-dessus ou au niveau
+                # (en escalade on monte, pas on descend)
+                if py > my + 60:
+                    continue
+            else:
+                # Pieds : rester sous le niveau des mains
+                # (jambes fléchies, pieds toujours en dessous des bras)
+                if y_mains is not None and py < y_mains - 30:
+                    continue
 
-        return (px, py), (mx, my)
+            if dist < meilleure_dist:
+                meilleure_dist = dist
+                meilleur = (px, py)
 
+        suggestions[membre] = meilleur
+
+    return suggestions
+
+
+# ── Compatibilité avec l'ancien appel (VideoWorker avant refacto) ─────────────
+def trouver_prochaine_prise(main_droite, main_gauche, prises_coords):
+    prises   = [{'coords': c, 'usage': 'Mains'} for c in prises_coords]
+    membres  = {'main_droite': main_droite, 'main_gauche': main_gauche,
+                'pied_droit': None, 'pied_gauche': None}
+    sug      = trouver_prises_par_membre(membres, prises)
+    resultats = []
+    for k in ('main_droite', 'main_gauche'):
+        if sug[k] and membres[k]:
+            d = math.hypot(sug[k][0] - membres[k][0], sug[k][1] - membres[k][1])
+            resultats.append((d, sug[k], membres[k]))
+    if resultats:
+        resultats.sort()
+        return resultats[0][1], resultats[0][2]
     return None, None
-                    
-

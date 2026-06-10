@@ -61,23 +61,10 @@ def detect_image(image_path):
 
         for cnt in contours:
             area = cv2.contourArea(cnt)
-            if area > 50: 
+            if area > 50:
                 taille += area
-
-                # replacer contour daans l'image globale
-                cnt = cnt + [x1, y1]
-                cv2.drawContours(img, [cnt], -1, (0, 255, 0), 2)
         
-        # ---- NUMÉRO DE LA PRISE ----
-        cv2.putText(
-            img, 
-            str(i+1), 
-            (x1, y1 - 10), 
-            cv2.FONT_HERSHEY_SIMPLEX, 
-            0.7, 
-            (255, 0, 0), 
-            2
-        )
+        bbox_area = (x2 - x1) * (y2 - y1)
 
         # ---- STOCKAGE DES INFORMATIONS DE LA PRISE ----
         prises.append({
@@ -85,7 +72,19 @@ def detect_image(image_path):
             "score": score,
             "coords": (x1, y1, x2, y2),
             "couleur": couleur,
-            "taille":int(taille),
+            "taille": int(taille),
+            "_bbox_area": bbox_area,
+            "usage": "Mains",   # sera recalculé ci-dessous
         })
+
+    # ---- USAGE : mains ou pieds selon la taille relative entre prises ----
+    # Les prises >= médiane des surfaces → Mains ; les plus petites → Pieds.
+    # Cette approche s'adapte à toute résolution d'image.
+    if prises:
+        areas = sorted(p["_bbox_area"] for p in prises)
+        mediane = areas[len(areas) // 2]
+        for p in prises:
+            p["usage"] = "Mains" if p["_bbox_area"] >= mediane else "Pieds"
+            del p["_bbox_area"]
 
     return img, prises

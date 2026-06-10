@@ -22,10 +22,26 @@ Sur macOS :
 
 import re
 import sys
+import os
+import json
 import platform
 import subprocess
 import unicodedata
 from typing import Optional
+
+# Chemin du modèle Vosk (même dossier que ce fichier)
+_VOSK_MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "vosk-model-small-fr-0.22")
+_vosk_model = None   # chargé une seule fois à la première utilisation
+
+
+def _get_vosk_model():
+    global _vosk_model
+    if _vosk_model is None:
+        import vosk
+        vosk.SetLogLevel(-1)
+        _vosk_model = vosk.Model(_VOSK_MODEL_PATH)
+    return _vosk_model
 
 
 # ============================================================
@@ -42,18 +58,12 @@ class MoteurVocal:
 
     def _initialiser(self):
         # 1. pyttsx3 (tous OS — priorité)
+        # On teste juste que pyttsx3 fonctionne ; l'engine est recréé dans chaque
+        # appel à dire() pour être thread-safe (COM/SAPI5 n'est pas réentrant).
         try:
             import pyttsx3
             m = pyttsx3.init()
-            m.setProperty("rate", 155)
-            m.setProperty("volume", 1.0)
-            for v in m.getProperty("voices"):
-                nom  = v.name.lower()
-                lang = (v.languages[0] if v.languages else b"").decode("utf-8", errors="ignore").lower()
-                if "fr" in lang or "french" in nom:
-                    m.setProperty("voice", v.id)
-                    break
-            self.moteur  = m
+            m.stop()
             self.methode = "pyttsx3"
             return
         except Exception:
@@ -103,8 +113,21 @@ class MoteurVocal:
             return
         try:
             if self.methode == "pyttsx3":
-                self.moteur.say(t)
-                self.moteur.runAndWait()
+                import pyttsx3
+                m = pyttsx3.init()
+                m.setProperty("rate", 155)
+                m.setProperty("volume", 1.0)
+                for v in m.getProperty("voices"):
+                    nom      = v.name.lower()
+                    lang_raw = v.languages[0] if v.languages else ""
+                    lang     = (lang_raw.decode("utf-8", errors="ignore")
+                                if isinstance(lang_raw, bytes) else str(lang_raw)).lower()
+                    if "fr" in lang or "french" in nom:
+                        m.setProperty("voice", v.id)
+                        break
+                m.say(t)
+                m.runAndWait()
+                m.stop()
             elif self.methode == "macos":
                 subprocess.run(["say", "-r", "155", "-v", "Amelie", t],
                                capture_output=True)
@@ -145,8 +168,9 @@ class EcouteurVocal:
     """
 
     def __init__(self):
-        self.sr         = None
-        self.disponible = False
+        self.sr             = None
+        self.disponible     = False
+        self.derniere_erreur = None   # message d'erreur lisible pour l'UI
         self._initialiser()
 
     def _initialiser(self):
@@ -169,22 +193,22 @@ class EcouteurVocal:
 
         sr  = self.sr
         rec = sr.Recognizer()
-        rec.pause_threshold          = 1.0
-        rec.dynamic_energy_threshold = True
+        rec.energy_threshold         = 300   # seuil fixe bas — capte la voix sans calibration dynamique
+        rec.dynamic_energy_threshold = False
+        rec.pause_threshold          = 0.8
 
         print("  [Micro] J'écoute... (parlez maintenant)")
 
+        self.derniere_erreur = None
         try:
             with sr.Microphone() as source:
-                rec.adjust_for_ambient_noise(source, duration=0.5)
                 try:
                     audio = rec.listen(source, timeout=8, phrase_time_limit=15)
                 except sr.WaitTimeoutError:
-                    print("  [Micro] Aucune voix détectée (timeout).")
+                    self.derniere_erreur = "Aucune voix détectée. Parlez plus fort ou vérifiez votre micro."
                     return None
         except OSError as e:
-            print(f"  [Micro] Impossible d'accéder au microphone : {e}", file=sys.stderr)
-            print("  → Vérifiez que votre micro est branché et autorisé.", file=sys.stderr)
+            self.derniere_erreur = f"Microphone inaccessible : {e}\nVérifiez qu'il est branché et autorisé dans Windows."
             return None
 
         return self._reconnaitre(rec, audio)
@@ -236,22 +260,32 @@ class EcouteurVocal:
     def _reconnaitre(self, rec, audio) -> Optional[str]:
         sr = self.sr
 
-        # Tentative 1 : Google (en ligne)
+        # Tentative 1 : Vosk hors-ligne (prioritaire si le modèle est présent)
+        if os.path.exists(_VOSK_MODEL_PATH):
+            try:
+                import vosk
+                model = _get_vosk_model()
+                raw   = audio.get_raw_data(convert_rate=16000, convert_width=2)
+                kaldi = vosk.KaldiRecognizer(model, 16000)
+                kaldi.AcceptWaveform(raw)
+                texte = json.loads(kaldi.FinalResult()).get("text", "").strip()
+                if texte:
+                    return texte
+                self.derniere_erreur = "Parole non comprise. Parlez plus fort et plus distinctement."
+                return None
+            except Exception as e:
+                self.derniere_erreur = f"Erreur Vosk : {e}"
+                return None
+
+        # Tentative 2 : Google (en ligne, si pas de modèle Vosk local)
         try:
             texte = rec.recognize_google(audio, language="fr-FR")
             return texte
         except sr.UnknownValueError:
-            print("  [Micro] Parole non comprise, réessaie.")
+            self.derniere_erreur = "Parole non comprise. Parlez plus clairement et plus fort."
             return None
-        except sr.RequestError:
-            pass   # pas d'Internet → hors-ligne
-
-        # Tentative 2 : Vosk (hors-ligne, si installé)
-        try:
-            texte = rec.recognize_vosk(audio, language="fr")
-            return texte
         except Exception:
-            print("  [Micro] Reconnaissance hors-ligne indisponible.")
+            self.derniere_erreur = "Reconnaissance vocale indisponible (Google inaccessible, modèle Vosk absent)."
             return None
 
     def info(self) -> str:
