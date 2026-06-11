@@ -1,6 +1,7 @@
 import streamlit as st
 st.set_page_config(page_title="BlindClimb Assist", layout="wide")
 import cv2
+import numpy as np
 import tempfile
 import threading
 import time
@@ -10,6 +11,7 @@ from detection_task import detect_corps
 from path import trouver_prises_par_membre
 from communication import MoteurVocal, EcouteurVocal, trouver_reponse
 from streamlit_image_coordinates import streamlit_image_coordinates
+from homographie import HomographyWorker, preparer_reference, transformer_prises
 
 
 # ==============================================================================
@@ -53,7 +55,7 @@ class _MJPEGHandler(BaseHTTPRequestHandler):
                     self.wfile.write(b"--frm\r\nContent-Type: image/jpeg\r\n\r\n")
                     self.wfile.write(data)
                     self.wfile.write(b"\r\n")
-                time.sleep(0.033)          # ~30 fps côté serveur
+                time.sleep(0.033)
         except Exception:
             pass
 
@@ -70,28 +72,52 @@ def _start_mjpeg_server():
 # ==============================================================================
 class FreshVideoCapture:
     def __init__(self, src=0):
-        self.cap = cv2.VideoCapture(src)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,  480)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
-        self.cap.set(cv2.CAP_PROP_FPS, 30)
-        self.ret, self.frame = self.cap.read()
+        self.src     = src
+        self.ret     = False
+        self.frame   = None
+        self._lock   = threading.Lock()
         self.running = True
+        # Ouverture ET lecture dans le même thread (évite les conflits COM/MSMF Windows)
         threading.Thread(target=self._update, daemon=True).start()
 
     def _update(self):
+        # Initialiser COM pour ce thread (nécessaire pour MSMF hors thread principal)
+        try:
+            import pythoncom
+            pythoncom.CoInitialize()
+        except Exception:
+            pass
+
+        cap = cv2.VideoCapture(self.src)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT,  720)
+        cap.set(cv2.CAP_PROP_FPS, 30)
+
+        _fails = 0
         while self.running:
-            ret, frame = self.cap.read()
+            ret, frame = cap.read()
             if ret:
-                self.ret, self.frame = ret, frame
+                with self._lock:
+                    self.ret, self.frame = True, frame
+                _fails = 0
+            else:
+                _fails += 1
+                if _fails > 60:          # ~0.6 s sans frame → réouvrir
+                    cap.release()
+                    time.sleep(0.4)
+                    cap = cv2.VideoCapture(self.src)
+                    cap.set(cv2.CAP_PROP_FPS, 30)
+                    _fails = 0
             time.sleep(0.01)
 
+        cap.release()
+
     def read(self):
-        return self.ret, self.frame
+        with self._lock:
+            return self.ret, self.frame
 
     def release(self):
         self.running = False
-        time.sleep(0.1)
-        self.cap.release()
 
 
 # ==============================================================================
@@ -156,8 +182,9 @@ _COULEUR_MEMBRE = {
 
 
 class VideoWorker:
-    def __init__(self, prises_coords):
-        self._prises       = list(prises_coords)
+    def __init__(self, prises_ref, ref_img):
+        # prises_ref : [{'ref_cx': int, 'ref_cy': int, 'usage': str}]
+        self._prises_ref   = list(prises_ref)
         self._prises_lock  = threading.Lock()
         self._state_lock   = threading.Lock()
         self._membres      = {}
@@ -165,14 +192,19 @@ class VideoWorker:
         self._running      = True
         self._cap          = FreshVideoCapture(0)
         self._pose         = AsyncPoseDetector()
+
+        ref_data        = preparer_reference(ref_img)
+        self._orig_w    = ref_data['orig_w']
+        self._orig_h    = ref_data['orig_h']
+        self._hworker   = HomographyWorker(ref_data)
+
         threading.Thread(target=self._loop, daemon=True).start()
 
-    def set_prises(self, prises_coords):
+    def set_prises(self, prises_ref):
         with self._prises_lock:
-            self._prises = list(prises_coords)
+            self._prises_ref = list(prises_ref)
 
     def get_state(self):
-        """Retourne membres et suggestions courants (thread-safe)."""
         with self._state_lock:
             return dict(self._membres), dict(self._suggestions)
 
@@ -185,6 +217,12 @@ class VideoWorker:
                 continue
 
             frame = cv2.flip(frame, 1)
+            live_h, live_w = frame.shape[:2]
+
+            # Soumettre la frame à l'homographie (calcul asynchrone)
+            self._hworker.submit(frame)
+            H = self._hworker.get_H()
+
             self._pose.submit(frame)
             landmarks, dimensions = self._pose.get()
 
@@ -192,7 +230,6 @@ class VideoWorker:
 
             if landmarks:
                 w, h = dimensions
-                # Liaisons squelette
                 for pt1, pt2 in LIAISONS_SQUELETTE:
                     if pt1 < len(landmarks) and pt2 < len(landmarks):
                         x1 = int(landmarks[pt1]["x"] * w)
@@ -201,12 +238,10 @@ class VideoWorker:
                         y2 = int(landmarks[pt2]["y"] * h)
                         if 0 <= x1 < w and 0 <= y1 < h and 0 <= x2 < w and 0 <= y2 < h:
                             cv2.line(frame, (x1, y1), (x2, y2), JAUNE, 3)
-                # Points squelette
                 for lm in landmarks[11:]:
                     cx, cy = int(lm["x"] * w), int(lm["y"] * h)
                     if 0 <= cx < w and 0 <= cy < h:
                         cv2.circle(frame, (cx, cy), 4, JAUNE, -1)
-                # Mains : 15 = gauche, 16 = droite
                 if len(landmarks) > 16:
                     xd, yd = int(landmarks[16]["x"] * w), int(landmarks[16]["y"] * h)
                     xg, yg = int(landmarks[15]["x"] * w), int(landmarks[15]["y"] * h)
@@ -216,7 +251,6 @@ class VideoWorker:
                     if 0 <= xg < w and 0 <= yg < h:
                         membres['main_gauche'] = (xg, yg)
                         cv2.circle(frame, (xg, yg), 12, CYAN, -1)
-                # Pieds : 27 = gauche, 28 = droite
                 if len(landmarks) > 28:
                     xpd, ypd = int(landmarks[28]["x"] * w), int(landmarks[28]["y"] * h)
                     xpg, ypg = int(landmarks[27]["x"] * w), int(landmarks[27]["y"] * h)
@@ -228,18 +262,26 @@ class VideoWorker:
                         cv2.circle(frame, (xpg, ypg), 12, ORANGE, -1)
 
             with self._prises_lock:
-                prises = list(self._prises)
+                prises_ref = list(self._prises_ref)
 
-            # Prises : BLEU = mains, ORANGE = pieds
-            for p in prises:
+            # Projeter les prises de l'espace référence vers la frame live
+            prises_live = transformer_prises(
+                prises_ref, H, self._orig_w, self._orig_h, live_w, live_h
+            )
+
+            # Dessiner les prises à leur position projetée
+            for p in prises_live:
+                if p['coords'] is None:
+                    continue
                 px, py = p['coords']
-                c = BLEU if p.get('usage', 'Mains') == 'Mains' else ORANGE
+                c = BLEU if p.get('usage', 'Mains+Pieds') == 'Mains+Pieds' else ORANGE
                 cv2.circle(frame, (px, py), 6, c, -1)
 
-            # Flèche de guidance par membre
+            # Flèches de guidance (navigation)
             suggestions = {}
+            prises_visibles = [p for p in prises_live if p['coords'] is not None]
             if any(membres[k] is not None for k in membres):
-                suggestions = trouver_prises_par_membre(membres, prises)
+                suggestions = trouver_prises_par_membre(membres, prises_visibles)
                 for nom, cible in suggestions.items():
                     if cible and membres[nom]:
                         c = _COULEUR_MEMBRE[nom]
@@ -260,6 +302,7 @@ class VideoWorker:
         self._running = False
         self._cap.release()
         self._pose.stop()
+        self._hworker.stop()
 
 
 # ==============================================================================
@@ -337,9 +380,86 @@ def _generer_guidance(worker):
 
 
 # ==============================================================================
+# MODE MICRO CONTINU
+# ==============================================================================
+class MicroContinu:
+    """Écoute en boucle, génère une réponse, la dit à voix haute, recommence."""
+
+    def __init__(self, ecouteur, vocal):
+        self.status       = "Démarrage…"
+        self.actif        = True
+        self._lock        = threading.Lock()
+        self._queue       = []
+        self._ecouteur    = ecouteur
+        self._vocal       = vocal
+        # Contexte mis à jour depuis le thread principal
+        self.prises       = []
+        self.img_h        = None
+        self.video_worker = None
+        self.live_actif   = False
+        threading.Thread(target=self._loop, daemon=True).start()
+
+    def update_context(self, prises, img_h, video_worker, live_actif):
+        self.prises       = prises or []
+        self.img_h        = img_h
+        self.video_worker = video_worker
+        self.live_actif   = live_actif
+
+    def pop_messages(self):
+        with self._lock:
+            msgs, self._queue = list(self._queue), []
+        return msgs
+
+    def _push(self, role, content):
+        with self._lock:
+            self._queue.append({"role": role, "content": content})
+
+    def _loop(self):
+        while self.actif:
+            self.status = "🎙️ J'écoute…"
+            texte = self._ecouteur.ecouter(self._vocal)
+            if not texte:
+                continue
+
+            self._push("user", texte)
+            q = texte.lower()
+
+            if any(kw in q for kw in ["au revoir", "arrête", "stop", "quitte"]):
+                reponse = "Au revoir ! Bonne escalade."
+                self._push("assistant", reponse)
+                self._vocal.dire(reponse)
+                self.actif = False
+                self.status = "Terminé"
+                break
+
+            self.status = "⏳ Traitement…"
+
+            if any(kw in q for kw in ['reste', 'restant', 'sommet', 'combien', 'loin du sommet']):
+                reponse = _compter_prises_restantes(self.video_worker, self.prises, self.img_h)
+            elif any(kw in q for kw in ['prochaine', 'suivante', 'guide', 'guider',
+                                         'quelle prise', 'dois-je prendre']):
+                if self.video_worker and self.live_actif:
+                    reponse = _generer_guidance(self.video_worker)
+                else:
+                    reponse = "Activez le mode live pour que je puisse vous guider."
+            else:
+                reponse = trouver_reponse(texte)
+
+            self._push("assistant", reponse)
+            self.status = "🔊 Répond…"
+            self._vocal.dire(reponse)
+
+        self.actif = False
+
+    def stop(self):
+        self.actif = False
+
+
+# ==============================================================================
 # INTERFACE PRINCIPALE STREAMLIT
 # ==============================================================================
 st.title("BlindClimb Assist")
+st.markdown("*La voix qui vous guide pour une montée en confiance !*")
 
 if "message" in st.session_state:
     st.success(st.session_state.message)
@@ -353,6 +473,12 @@ if "video_worker"    not in st.session_state: st.session_state.video_worker    =
 if "chat_historique"      not in st.session_state: st.session_state.chat_historique      = []
 if "img_h"               not in st.session_state: st.session_state.img_h               = None
 if "selected_prise_index" not in st.session_state: st.session_state.selected_prise_index = 0
+if "photo_en_attente"    not in st.session_state: st.session_state.photo_en_attente    = None
+if "crop_p1"             not in st.session_state: st.session_state.crop_p1             = None
+if "crop_p2"             not in st.session_state: st.session_state.crop_p2             = None
+if "crop_step"           not in st.session_state: st.session_state.crop_step           = 0
+if "ref_img"             not in st.session_state: st.session_state.ref_img             = None
+if "micro_continu"       not in st.session_state: st.session_state.micro_continu       = None
 
 # ==============================================================================
 # SECTION LIVE — pleine largeur
@@ -369,14 +495,14 @@ if st.session_state.prises:
         if live_clique:
             prises_info = [
                 {
-                    'coords': (int((p["coords"][0] + p["coords"][2]) / 2),
-                               int((p["coords"][1] + p["coords"][3]) / 2)),
+                    'ref_cx': int((p["coords"][0] + p["coords"][2]) / 2),
+                    'ref_cy': int((p["coords"][1] + p["coords"][3]) / 2),
                     'usage':  p.get("usage", "Mains"),
                 }
                 for p in st.session_state.prises
             ]
             _start_mjpeg_server()
-            st.session_state.video_worker = VideoWorker(prises_info)
+            st.session_state.video_worker = VideoWorker(prises_info, st.session_state.ref_img)
         else:
             if st.session_state.video_worker is not None:
                 st.session_state.video_worker.stop()
@@ -387,8 +513,8 @@ if st.session_state.prises:
         if st.session_state.video_worker is not None:
             prises_info = [
                 {
-                    'coords': (int((p["coords"][0] + p["coords"][2]) / 2),
-                               int((p["coords"][1] + p["coords"][3]) / 2)),
+                    'ref_cx': int((p["coords"][0] + p["coords"][2]) / 2),
+                    'ref_cy': int((p["coords"][1] + p["coords"][3]) / 2),
                     'usage':  p.get("usage", "Mains"),
                 }
                 for p in st.session_state.prises
@@ -426,7 +552,7 @@ if st.session_state.prises:
                 "<span>🩵 Main gauche</span>"
                 "<span>🟢 Pied droit</span>"
                 "<span>🟠 Pied gauche</span>"
-                "<span style='opacity:.6'>● prise mains &nbsp; ● prise pieds</span>"
+                "<span style='opacity:.6'>● mains+pieds &nbsp; ● pieds seul.</span>"
                 "</div>",
                 unsafe_allow_html=True,
             )
@@ -463,19 +589,62 @@ with col_hist:
 with col_form:
     audio_actif = st.toggle("Réponses audio", value=True)
     st.markdown("<br>", unsafe_allow_html=True)
-    with st.form("chat_form", clear_on_submit=True):
-        question = st.text_area(
-            "Votre question :",
-            placeholder="Ex : comment sécuriser une chute ?",
-            height=120,
+
+    # ── Mode Micro Continu ──────────────────────────────────────────────────
+    mc = st.session_state.micro_continu
+    if mc and not mc.actif:
+        for msg in mc.pop_messages():
+            st.session_state.chat_historique.append(msg)
+        st.session_state.micro_continu = None
+        mc = None
+
+    if mc and mc.actif:
+        for msg in mc.pop_messages():
+            st.session_state.chat_historique.append(msg)
+        mc.update_context(
+            st.session_state.prises,
+            st.session_state.img_h,
+            st.session_state.video_worker,
+            st.session_state.live_actif,
         )
-        c1, c2 = st.columns(2)
-        with c1:
-            submit_text  = st.form_submit_button("📨 Envoyer",  use_container_width=True)
-        with c2:
-            submit_voice = st.form_submit_button("🎙️ Parler",
-                                                  use_container_width=True,
-                                                  disabled=not ecouteur.disponible)
+        st.info(mc.status)
+        if st.button("⏹ Arrêter le micro continu", use_container_width=True):
+            mc.stop()
+            st.session_state.micro_continu = None
+            st.rerun()
+        time.sleep(0.5)
+        st.rerun()
+
+    else:
+        if ecouteur.disponible:
+            if st.button("🔄 Mode micro continu", use_container_width=True, type="primary",
+                         help="Écoute en boucle. Dis « au revoir » pour arrêter."):
+                mc_new = MicroContinu(ecouteur, vocal)
+                mc_new.update_context(
+                    st.session_state.prises,
+                    st.session_state.img_h,
+                    st.session_state.video_worker,
+                    st.session_state.live_actif,
+                )
+                st.session_state.micro_continu = mc_new
+                st.rerun()
+        else:
+            st.button("🔄 Mode micro continu", use_container_width=True, disabled=True,
+                      help="Installez SpeechRecognition et pyaudio pour activer ce mode.")
+        st.markdown("<br>", unsafe_allow_html=True)
+        with st.form("chat_form", clear_on_submit=True):
+            question = st.text_area(
+                "Votre question :",
+                placeholder="Ex : comment sécuriser une chute ?",
+                height=120,
+            )
+            c1, c2 = st.columns(2)
+            with c1:
+                submit_text  = st.form_submit_button("📨 Envoyer",  use_container_width=True)
+            with c2:
+                submit_voice = st.form_submit_button("🎙️ Parler",
+                                                      use_container_width=True,
+                                                      disabled=not ecouteur.disponible)
 
 question_finale = None
 if submit_text and question:
@@ -514,25 +683,153 @@ if question_finale:
 st.markdown("---")
 
 # ==============================================================================
-# UPLOAD + DÉTECTION
+# SOURCE IMAGE — fichier ou capture caméra
 # ==============================================================================
-uploaded_file = st.file_uploader("Choisissez une image du mur d'escalade",
-                                  type=["jpg", "jpeg", "png"])
-
-if uploaded_file is not None:
+def _lancer_detection(image_bytes: bytes):
+    """Sauvegarde les bytes dans un fichier temp, lance YOLO et met à jour le state."""
     tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
-    tfile.write(uploaded_file.read())
+    tfile.write(image_bytes)
     tfile.flush()
+    result, prises = detect_image(tfile.name)
+    st.session_state.result               = result
+    st.session_state.ref_img              = result.copy()
+    st.session_state.prises               = prises
+    st.session_state.original_prises      = [p.copy() for p in prises]
+    st.session_state.img_h                = result.shape[0]
+    st.session_state.selected_prise_index = 0
 
-    st.image(uploaded_file, caption="Image originale du mur")
 
-    if st.button("Lancer la détection des prises"):
-        result, prises = detect_image(tfile.name)
-        st.session_state.result          = result
-        st.session_state.prises          = prises
-        st.session_state.original_prises = [p.copy() for p in prises]
-        st.session_state.img_h           = result.shape[0]
-        st.rerun()
+tab_fichier, tab_camera = st.tabs(["📁 Choisir un fichier", "📸 Prendre une photo du mur"])
+
+def _stocker_photo(image_bytes: bytes):
+    """Stocke la photo pour recadrage avant détection."""
+    st.session_state.photo_en_attente = image_bytes
+    st.session_state.crop_p1   = None
+    st.session_state.crop_p2   = None
+    st.session_state.crop_step = 0
+
+with tab_fichier:
+    uploaded_file = st.file_uploader("Image du mur d'escalade",
+                                     type=["jpg", "jpeg", "png"],
+                                     label_visibility="collapsed")
+    if uploaded_file is not None:
+        st.image(uploaded_file, caption="Image chargée", use_container_width=True)
+        if st.button("✂️ Utiliser cette image", key="btn_use_file",
+                     use_container_width=True, type="primary"):
+            _stocker_photo(uploaded_file.getvalue())
+            st.rerun()
+
+with tab_camera:
+    if st.session_state.live_actif:
+        st.info("Le live est actif. Désactivez-le pour prendre une nouvelle photo, "
+                "ou capturez la frame courante ci-dessous.")
+        if _latest_jpeg is not None:
+            with _jpeg_lock:
+                snap_preview = _latest_jpeg
+            st.image(snap_preview, caption="Frame courante", use_container_width=True)
+            if st.button("📷 Utiliser cette frame", use_container_width=True, type="primary"):
+                with _jpeg_lock:
+                    snap = _latest_jpeg
+                _stocker_photo(snap)
+                st.rerun()
+    else:
+        photo = st.camera_input("Prenez une photo du mur", label_visibility="collapsed")
+        if photo is not None:
+            if st.button("✂️ Utiliser cette photo", key="btn_use_cam",
+                         use_container_width=True, type="primary"):
+                _stocker_photo(photo.getvalue())
+                st.rerun()
+
+# ==============================================================================
+# RECADRAGE INTERACTIF
+# ==============================================================================
+if st.session_state.photo_en_attente is not None:
+    st.markdown("---")
+    st.markdown("### ✂️ Recadrage (optionnel)")
+
+    img_brut = cv2.imdecode(
+        np.frombuffer(st.session_state.photo_en_attente, np.uint8),
+        cv2.IMREAD_COLOR,
+    )
+    ih, iw = img_brut.shape[:2]
+    p1 = st.session_state.crop_p1
+
+    if p1 is None:
+        # ── Étape 1 : clic pour placer le premier coin ───────────────────────────
+        st.info("Cliquez sur le **premier coin** de la zone à recadrer.")
+        img_rgb = cv2.cvtColor(img_brut, cv2.COLOR_BGR2RGB)
+        click = streamlit_image_coordinates(img_rgb, key="crop_click_p1")
+        if click is not None:
+            st.session_state.crop_p1   = (int(click["x"]), int(click["y"]))
+            st.session_state.crop_step = 1
+            st.rerun()
+
+        col_skip, col_ann = st.columns(2)
+        with col_skip:
+            if st.button("🔍 Détecter sans recadrage", use_container_width=True):
+                with st.spinner("Détection YOLO en cours…"):
+                    _lancer_detection(st.session_state.photo_en_attente)
+                st.session_state.photo_en_attente = None
+                st.session_state.crop_step = 0
+                st.rerun()
+        with col_ann:
+            if st.button("✕ Annuler", use_container_width=True):
+                st.session_state.photo_en_attente = None
+                st.session_state.crop_step = 0
+                st.rerun()
+
+    else:
+        # ── Étape 2 : sliders pour ajuster le coin opposé ───────────────────────
+        # Les sliders sont initialisés au bord opposé de l'image par rapport à p1
+        default_x2 = iw if p1[0] <= iw // 2 else 0
+        default_y2 = ih if p1[1] <= ih // 2 else 0
+
+        # Clés incluant p1 → reset automatique si p1 change
+        sk = f"{p1[0]}_{p1[1]}"
+        col_sl1, col_sl2 = st.columns(2)
+        with col_sl1:
+            x2 = st.slider("← → Bord horizontal", 0, iw, default_x2, key=f"cx2_{sk}")
+        with col_sl2:
+            y2 = st.slider("↑ ↓ Bord vertical",   0, ih, default_y2, key=f"cy2_{sk}")
+
+        # Rectangle normalisé (p1 peut être n'importe quel coin)
+        x1c, y1c = min(p1[0], x2), min(p1[1], y2)
+        x2c, y2c = max(p1[0], x2), max(p1[1], y2)
+
+        # Aperçu avec rectangle + poignées de coin
+        img_disp = img_brut.copy()
+        cv2.rectangle(img_disp, (x1c, y1c), (x2c, y2c), (0, 220, 0), 3)
+        cv2.rectangle(img_disp, (x1c-1, y1c-1), (x2c+1, y2c+1), (255, 255, 255), 1)
+        for corner in [(x1c, y1c), (x2c, y1c), (x2c, y2c), (x1c, y2c)]:
+            cv2.circle(img_disp, corner, 7, (255, 255, 255), -1)
+            cv2.circle(img_disp, corner, 5, (0, 200, 0),     -1)
+        st.image(cv2.cvtColor(img_disp, cv2.COLOR_BGR2RGB), use_container_width=True)
+        st.caption(f"Zone sélectionnée : {x2c - x1c} × {y2c - y1c} px")
+
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            if st.button("🔍 Détecter avec recadrage", use_container_width=True, type="primary"):
+                recadree = img_brut[y1c:y2c, x1c:x2c]
+                _, buf = cv2.imencode(".jpg", recadree)
+                with st.spinner("Détection YOLO en cours…"):
+                    _lancer_detection(buf.tobytes())
+                st.session_state.photo_en_attente = None
+                st.session_state.crop_p1 = None
+                st.session_state.crop_step = 0
+                st.rerun()
+        with c2:
+            if st.button("↩ Replacer le 1er coin", use_container_width=True):
+                st.session_state.crop_p1   = None
+                st.session_state.crop_step = 0
+                st.rerun()
+        with c3:
+            if st.button("🔍 Détecter sans recadrage", use_container_width=True):
+                with st.spinner("Détection YOLO en cours…"):
+                    _lancer_detection(st.session_state.photo_en_attente)
+                st.session_state.photo_en_attente = None
+                st.session_state.crop_p1 = None
+                st.session_state.crop_step = 0
+                st.rerun()
 
 # ==============================================================================
 # CARTOGRAPHIE INTERACTIVE + MODIFICATION DES PRISES
@@ -554,7 +851,7 @@ if st.session_state.result is not None:
                 cv2.rectangle(img_map, (x1 - 3, y1 - 3), (x2 + 3, y2 + 3), (255, 255, 255), 3)
                 cv2.rectangle(img_map, (x1, y1), (x2, y2), (0, 0, 230), 3)
             else:
-                couleur = (0, 190, 0) if p.get("usage") == "Mains" else (0, 140, 255)
+                couleur = (0, 190, 0) if p.get("usage") == "Mains+Pieds" else (0, 140, 255)
                 cv2.rectangle(img_map, (x1, y1), (x2, y2), couleur, 2)
 
             txt_color = (230, 100, 0) if i == idx_sel else (255, 255, 255)
@@ -567,7 +864,7 @@ if st.session_state.result is not None:
         # ── Légende ─────────────────────────────────────────────────────────────
         st.markdown(
             "<div style='font-size:13px;margin-bottom:6px;'>"
-            "🟢 Prise de mains &nbsp;&nbsp; 🟠 Prise de pieds &nbsp;&nbsp; "
+            "🟢 Mains + pieds &nbsp;&nbsp; 🟠 Pieds seulement &nbsp;&nbsp; "
             "🔵 Sélectionnée — cliquez sur une prise pour la sélectionner</div>",
             unsafe_allow_html=True,
         )
@@ -617,8 +914,8 @@ if st.session_state.result is not None:
             with st.expander("Modifier cette prise"):
                 new_couleur = st.text_input("Couleur :", value=p["couleur"], key="ec")
                 new_taille  = st.number_input("Taille (px²) :", value=int(p["taille"]), key="et")
-                new_usage   = st.selectbox("Usage :", ["Mains", "Pieds"], key="eu",
-                                           index=0 if p.get("usage", "Mains") == "Mains" else 1)
+                new_usage   = st.selectbox("Usage :", ["Mains+Pieds", "Pieds"], key="eu",
+                                           index=0 if p.get("usage", "Mains+Pieds") == "Mains+Pieds" else 1)
                 x1, y1, x2, y2 = p["coords"]
                 new_x1 = st.number_input("x1 :", value=int(x1), key="ex1")
                 new_y1 = st.number_input("y1 :", value=int(y1), key="ey1")
@@ -662,7 +959,7 @@ if st.session_state.result is not None and st.session_state.prises is not None:
 
     add_couleur = st.text_input("Couleur nouvelle prise:", value="inconnue", key="add_couleur")
     add_taille  = st.number_input("Taille nouvelle prise (pixels²):", value=100, key="add_taille")
-    add_usage   = st.selectbox("Usage nouvelle prise:", ["Mains", "Pieds"], key="add_usage")
+    add_usage   = st.selectbox("Usage nouvelle prise:", ["Mains+Pieds", "Pieds"], key="add_usage")
 
     if st.button("Ajouter la prise"):
         new_id    = len(st.session_state.prises) + 1
