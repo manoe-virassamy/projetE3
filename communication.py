@@ -300,287 +300,204 @@ class EcouteurVocal:
 # ============================================================
 
 REPONSES = [
-
-
-
     {
         "mots_cles": ["échauffement", "echauffement", "chauffer", "préparation", "preparation"],
         "reponse": (
-            "ÉCHAUFFEMENT — Prépare ton corps.\n"
-            "Effectue quelques mouvements des épaules, poignets et chevilles.\n"
-            "Commence par des voies faciles pour activer les muscles progressivement.\n"
-            "Un bon échauffement réduit le risque de blessure et améliore les performances."
+            "Fais quelques rotations des épaules, poignets et chevilles.\n"
+            "Commence par des voies faciles pour activer les muscles."
         )
     },
-     {
+    {
         "mots_cles": ["descente", "redescendre", "descendre", "rappel", "moulinette"],
         "reponse": (
-            "Pour descendre, préviens ton assureur avec le signal convenu.\n"
-            "Garde les jambes légèrement fléchies.\n"
-            "Signale quand tes pieds touchent le sol."
+            "Préviens ton assureur avant de descendre.\n"
+            "Garde les jambes légèrement fléchies et signale quand tu touches le sol."
         )
     },
     {
         "mots_cles": ["douleur", "doigt", "tendon", "blessure", "mal", "bobo"],
         "reponse": (
-            "Si tu as mal, arrête-toi et redescends.\n"
-            "Ne force jamais sur une douleur vive.\n"
-            "Consulte un médecin si la douleur dure."
+            "Stop ! Arrête-toi et redescends.\n"
+            "Ne force jamais sur une douleur vive."
         )
     },
     {
         "mots_cles": ["technique", "position", "équilibre", "equilibre"],
         "reponse": (
-            "TECHNIQUE — Grimpe avec les jambes.\n"
-            "Les jambes sont plus puissantes que les bras.\n"
-            "Cherche ton équilibre avant de tirer sur les prises.\n"
-            "Garde les bras détendus autant que possible pour économiser ton énergie."
+            "Grimpe avec les jambes, elles sont plus puissantes que les bras.\n"
+            "Garde les bras détendus pour économiser ton énergie."
         )
     },
     {
         "mots_cles": ["sensation", "toucher", "tactile", "explorer", "palper"],
         "reponse": (
             "Avant chaque mouvement, explore la zone à portée de main.\n"
-            "Sens la taille et l'orientation de chaque prise.\n"
             "Tes mains et tes pieds sont tes yeux sur le mur."
         )
     },
     {
         "mots_cles": ["fatigue", "repos", "pause", "récupération", "recuperation"],
         "reponse": (
-            "RÉCUPÉRATION — Écoute ton corps.\n"
-            "Prends des pauses régulières entre les essais.\n"
-            "Hydrate-toi fréquemment.\n"
-            "Si tes avant-bras sont très congestionnés, repose-toi avant de repartir."
+            "Prends des pauses régulières et hydrate-toi.\n"
+            "Si tes avant-bras sont congestionnés, repose-toi avant de repartir."
         )
     },
     {
         "mots_cles": ["peur", "vertige", "stress", "confiance"],
         "reponse": (
-            "GESTION DU STRESS — Reste concentré.\n"
-            "Regarde les prises suivantes plutôt que le vide sous toi.\n"
-            "Respire calmement et communique avec ton assureur.\n"
-            "La confiance se construit progressivement avec la pratique."
+            "Respire calmement. La confiance vient avec la pratique."
         )
     },
     {
         "mots_cles": ["chute", "tomber", "vol", "tombe"],
         "reponse": (
-            "CHUTE — Quelques conseils.\n"
-            "Préviens ton assureur avant de te laisser tomber.\n"
-            "Écarte-toi du mur avec les pieds pour éviter les chocs.\n"
-            "Garde les jambes légèrement fléchies lors de la réception dans le baudrier."
+            "Préviens ton assureur avant de lâcher.\n"
+            "Écarte-toi du mur avec les pieds et garde les jambes légèrement fléchies."
         )
     },
     {
         "mots_cles": ["lecture", "voie", "itinéraire", "itineraire"],
         "reponse": (
-            "LECTURE DE VOIE — Anticipe tes mouvements.\n"
             "Observe la voie depuis le sol avant de partir.\n"
-            "Repère les prises de mains et de pieds importantes.\n"
-            "Prévoir son itinéraire permet d'économiser beaucoup d'énergie."
+            "Repère les prises importantes : ça économise beaucoup d'énergie."
         )
     },
     {
         "mots_cles": ["magnésie", "magnesie", "mains", "adhérence", "adherence"],
         "reponse": (
-            "ADHÉRENCE — Optimise ton grip.\n"
             "Utilise la magnésie avec modération.\n"
-            "Essuie la transpiration de tes mains si nécessaire.\n"
             "La précision des placements compte souvent plus que la force."
         )
     },
     {
         "mots_cles": ["débutant", "debutant", "commencer", "première fois", "premiere fois"],
         "reponse": (
-            "DÉBUTANT — Prends ton temps.\n"
-            "Concentre-toi d'abord sur les mouvements simples et l'équilibre.\n"
-            "N'hésite pas à demander conseil aux encadrants.\n"
-            "Chaque grimpeur progresse à son rythme."
+            "Concentre-toi sur les mouvements simples et l'équilibre.\n"
+            "N'hésite pas à demander conseil aux encadrants. Chacun progresse à son rythme."
         )
     },
     {
-        "mots_cles": ["matériel", "materiel", "baudrier", "corde", "équipement", "equipement"],
+        "mots_cles": ["matériel", "materiel", "baudrier", "corde"],
         "reponse": (
-            "MATÉRIEL — Vérification essentielle.\n"
-            "Contrôle l'état du baudrier, de la corde et du système d'assurage.\n"
-            "Assure-toi que tous les réglages sont correctement effectués.\n"
-            "En cas de doute, demande une vérification à un encadrant."
+            "Contrôle baudrier, corde et système d'assurage avant chaque séance.\n"
+            "En cas de doute, demande vérification à un encadrant."
         )
     },
     {
         "mots_cles": ["performance", "progresser", "progression", "niveau"],
         "reponse": (
-            "PROGRESSION — Grimpe intelligemment.\n"
-            "Travaille régulièrement des voies légèrement au-dessus de ton niveau.\n"
-            "Analyse tes erreurs et tes réussites.\n"
+            "Travaille des voies légèrement au-dessus de ton niveau.\n"
             "La technique est souvent plus importante que la force brute."
         )
     },
-
     {
-        "mots_cles":["combien", "reste", "finir", "fin"],
+        "mots_cles": ["combien", "reste", "finir", "fin"],
         "reponse": (
-            "Il vous reste ... de prises\n",
-            "Vous pouvez le faire, vous en êtes tout à fait capable."
+            "Il vous reste ... de prises.\n"
+            "Vous pouvez le faire !"
         )
-
-    
     },
     {
         "mots_cles": ["bonjour", "salut", "hello", "bonsoir", "coucou"],
         "reponse": (
-            "Bonjour et bienvenue !\n"
-            "Je suis ton assistant escalade pour les personnes aveugles et malvoyantes.\n"
-            "Je peux t'aider sur la sécurité, l'équipement, la communication avec ton assureur,\n"
-            "les techniques de grimpe, l'orientation sur le mur, les droits et les associations.\n"
-            "Pose-moi ta question, je suis là !"
+            "Bonjour ! Je suis ton assistant escalade pour les personnes aveugles et malvoyantes.\n"
+            "Pose-moi ta question sur la sécurité, l'équipement, les techniques, ou les associations."
         )
     },
     {
         "mots_cles": ["qui es-tu", "qui es tu", "c'est quoi", "tu fais quoi", "aide", "help"],
         "reponse": (
-            "Je suis un assistant virtuel spécialisé dans l'escalade adaptée.\n"
-            "Mon rôle est de t'accompagner dans ta pratique de l'escalade en salle\n"
-            "lorsque tu es aveugle ou malvoyant.\n"
-            "Tu peux me parler de sécurité, d'équipement, de techniques,\n"
-            "de communication avec ton assureur, ou encore des associations."
+            "Je suis un assistant spécialisé dans l'escalade adaptée.\n"
+            "Je t'aide sur la sécurité, les techniques, l'équipement et la communication avec ton assureur.\n"
+            "Et si ma réponse ne te convient pas, tu peux toujours disscuter avec ton assureur et lui demander conseils."
         )
     },
     {
         "mots_cles": ["sécurité", "securite", "danger", "risque", "sûr", "sur"],
         "reponse": (
-            "SÉCURITÉ — Points essentiels.\n"
-            "Avant de grimper, palpe le mur à portée de main pour repérer les prises proches.\n"
-            "Conviens avec ton assureur d'un code vocal clair : DROITE, GAUCHE, HAUT, BAS.\n"
-            "Vérifie toujours ensemble le baudrier et les noeuds avant de commencer.\n"
-            "Informe le staff de la salle de ton passage.\n"
+            "Conviens d'un code vocal clair avec ton assureur : DROITE, GAUCHE, HAUT, BAS.\n"
+            "Vérifie toujours le baudrier et les noeuds avant de grimper.\n"
             "La communication est la clé de la sécurité !"
         )
     },
     {
         "mots_cles": ["équipement", "equipement", "matériel", "materiel", "chaussures", "baudrier", "corde", "acheter"],
         "reponse": (
-            "ÉQUIPEMENT recommandé.\n"
-            "Un baudrier avec boucles en relief pour les reconnaître au toucher.\n"
-            "Des chaussures d'escalade légèrement serrées pour maximiser les sensations.\n"
-            "De la magnésie pour améliorer l'adhérence des mains.\n"
-            "Un casque fortement conseillé pour les débutants."
+            "Baudrier avec boucles en relief, chaussures légèrement serrées, la magnésie est optionel.\n"
+            "Un casque est fortement conseillé pour les débutants."
         )
     },
     {
         "mots_cles": ["assureur", "communiquer", "communication", "guider", "guidage", "instructions", "verbal", "code"],
         "reponse": (
-            "COMMUNICATION avec ton assureur.\n"
-            "Mettez-vous d'accord sur un code vocal précis avant de grimper.\n"
+            "Mettez-vous d'accord sur un code vocal avant de grimper.\n"
             "Directions : DROITE, GAUCHE, HAUT, BAS.\n"
-            "Distances : PROCHE pour moins de 20 centimètres, MOYEN jusqu'à 50, LOIN au-delà.\n"
-            "Type de prise : RÉGLETTE, JUG, BOMBE, PINCE.\n"
-            "Sécurité : STOP pour ne plus bouger. OK DESCEND pour redescendre.\n"
-            "Entraîne-toi à ce code à terre avant de grimper !"
+            "Distances : PROCHE (< 20 cm), MOYEN (< 50 cm), LOIN.\n"
+            "Sécurité : STOP pour ne plus bouger, OK DESCEND pour redescendre."
         )
     },
     {
         "mots_cles": ["technique", "grimper", "comment monter", "prises", "pied", "main", "mouvement", "déplacement"],
         "reponse": (
-            "TECHNIQUES de grimpe à l'aveugle.\n"
-            "Exploration tactile : explore la zone à portée de main avant chaque mouvement.\n"
-            "Pieds en premier : place tes pieds précisément, ils portent le corps.\n"
-            "Trois points d'appui : garde toujours trois membres sur le mur.\n"
-            "Respiration : expire à l'effort, inspire dans les positions stables.\n"
-            "Mémorisation : construis mentalement une carte du mur en montant.\n"
-            "Écoute du corps : tes sensations sont tes meilleures alliées."
+            "Explore à la main avant chaque mouvement.\n"
+            "Place tes pieds en premier, garde trois appuis sur le mur.\n"
         )
     },
     {
         "mots_cles": ["orientation", "repère", "repere", "carte", "position", "où je suis", "situer", "mur"],
         "reponse": (
-            "S'ORIENTER sur le mur.\n"
             "Palpe les bords du mur pour t'ancrer au départ.\n"
-            "L'assureur t'indique ta hauteur et le nombre de prises restantes.\n"
-            "Méthode de la grille : imagine le mur en colonnes et lignes numérotées.\n"
-            "Certaines salles placent des reliefs tactiles comme repères.\n"
+            "L'assureur peut t'indiquer ta hauteur et les prises restantes.\n"
             "Demande au staff de t'orienter avant de commencer."
         )
     },
     {
         "mots_cles": ["association", "club", "fédération", "federation", "handisport", "adapté", "adapte", "handicap"],
         "reponse": (
-            "ASSOCIATIONS et ressources utiles.\n"
-            "Handisport France : fédération officielle, sur handisport point org.\n"
-            "FFME, commission Escalade Handisport, sur ffme point fr.\n"
-            "AVH, Association Valentin Haüy, sur avh point asso point fr.\n"
-            "Contacte la salle locale : beaucoup ont des créneaux adaptés."
+            "Handisport France : handisport.org\n"
+            "FFME commission Escalade Handisport : ffme.fr\n"
+            "AVH : avh.asso.fr\n"
+            "Beaucoup de salles ont des créneaux adaptés, renseigne-toi !"
         )
     },
     {
         "mots_cles": ["première fois", "premiere fois", "debut", "débuter", "commencer", "débutant", "novice", "jamais grimpé"],
         "reponse": (
-            "TA PREMIÈRE SÉANCE.\n"
-            "Appelle la salle à l'avance pour demander un moniteur formé.\n"
-            "Arrive avec ton assureur et faites une visite tactile ensemble.\n"
-            "Commencez par le bloc, c'est le mur bas sans corde.\n"
-            "Définissez votre code de communication avant de poser les mains.\n"
-            "Commence à un mètre du sol : l'objectif, c'est ressentir !\n"
+            "Commencez par le bloc et définissez votre code vocal avant de poser les mains.\n"
             "Bonne première grimpe !"
-        )
-    },
-    {
-        "mots_cles": ["difficile", "dur", "peur", "panique", "fatigué", "fatigue", "découragé", "décourage", "abandonner"],
-        "reponse": (
-            "C'est normal de trouver ça difficile au début.\n"
-            "Respire profondément avant chaque mouvement.\n"
-            "Reste proche du sol, la confiance vient progressivement.\n"
-            "Chaque centimètre gagné est une vraie victoire.\n"
-            "Beaucoup de grimpeurs non-voyants atteignent des niveaux impressionnants.\n"
-            "Continue !"
         )
     },
     {
         "mots_cles": ["vocabulaire", "mot", "terme", "jug", "réglette", "reglette", "bombe", "pince", "dégaine", "degaine", "nœud", "noeud"],
         "reponse": (
-            "VOCABULAIRE de l'escalade.\n"
-            "JUG : grosse prise facile, en forme de poignée.\n"
-            "RÉGLETTE : prise plate et fine, juste pour les doigts.\n"
-            "BOMBE : prise ronde qu'on enserre avec la main.\n"
-            "PINCE : serrée entre le pouce et les doigts.\n"
-            "BAUDRIER : harnais autour de la taille et des cuisses.\n"
-            "NOEUD EN HUIT : noeud principal pour s'encorder.\n"
+            "JUG : grosse prise en forme de poignée.\n"
+            "RÉGLETTE : prise plate et fine.\n"
+            "BOMBE : prise ronde qu'on enserre.\n"
+            "PINCE : serrée entre pouce et doigts.\n"
             "BLOC : mur bas sans corde. MOULINETTE : corde déjà en haut."
         )
     },
     {
         "mots_cles": ["droit", "accessibilité", "accessibilite", "loi", "discrimination", "accès", "acces", "tarif"],
         "reponse": (
-            "DROITS et accessibilité.\n"
-            "La loi du 11 février 2005 garantit l'accès des personnes handicapées\n"
-            "aux établissements sportifs en France.\n"
-            "En cas de refus, contacte le Défenseur des Droits au 0 809 849 849.\n"
-            "Demande le tarif handisport en salle, et renseigne-toi auprès de ta mutuelle."
+            "La loi du 11 février 2005 garantit l'accès aux établissements sportifs.\n"
+            "En cas de refus, contacte le Défenseur des Droits : 0 809 849 849.\n"
+            "Demande le tarif handisport en salle."
         )
     },
     {
         "mots_cles": ["au revoir", "bye", "à bientôt", "a bientot", "merci", "ciao", "tchao", "quitter", "fin", "arrêter", "arreter"],
         "reponse": (
             "À bientôt !\n"
-            "Bonne chance dans ta pratique de l'escalade.\n"
-            "N'oublie pas : chaque prise conquise est une victoire !\n"
-            "Reviens quand tu veux."
         )
     },
 ]
 
 REPONSE_DEFAUT = (
-    "Je n'ai pas bien compris ta question.\n"
-    "Tu peux me parler de : sécurité, équipement, communication,\n"
-    "technique, orientation, association, première fois, vocabulaire, ou droits.\n"
-    "Reformule ta question ou répète un de ces mots-clés."
+    "Je n'ai pas compris ta question.\n"
+    "Parle-moi de : sécurité, équipement, communication, technique, orientation, association, ou vocabulaire"
 )
-
-MOTS_SORTIE = {
-    "quitter", "quit", "exit", "bye", "au revoir", "a bientot",
-    "à bientôt", "fin", "ciao", "tchao", "arrêter", "arreter"
-}
+]
 
 
 # ============================================================
