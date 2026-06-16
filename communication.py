@@ -345,6 +345,7 @@ REPONSES = [
     {
         "mots_cles": ["peur", "vertige", "stress", "confiance"],
         "reponse": (
+            "concentre-toi sur ce que tu sens sous tes mains et tes pieds."
             "Respire calmement. La confiance vient avec la pratique."
         )
     },
@@ -358,7 +359,7 @@ REPONSES = [
     {
         "mots_cles": ["lecture", "voie", "itinéraire", "itineraire"],
         "reponse": (
-            "Observe la voie depuis le sol avant de partir.\n"
+            "Demander à l'assureur de décrire la voie verbalement et construire un plan mental."
             "Repère les prises importantes : ça économise beaucoup d'énergie."
         )
     },
@@ -409,7 +410,7 @@ REPONSES = [
         "reponse": (
             "Je suis un assistant spécialisé dans l'escalade adaptée.\n"
             "Je t'aide sur la sécurité, les techniques, l'équipement et la communication avec ton assureur.\n"
-            "Et si ma réponse ne te convient pas, tu peux toujours disscuter avec ton assureur et lui demander conseils."
+            "Et si ma réponse ne te convient pas, tu peux toujours discuter avec ton assureur et lui demander conseil."
         )
     },
     {
