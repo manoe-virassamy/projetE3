@@ -1,5 +1,19 @@
 import streamlit as st
 st.set_page_config(page_title="BlindClimb Assist", layout="wide", page_icon="Logo.jpg")
+
+
+@st.cache_resource
+def _patch_pwa_une_fois():
+    try:
+        from patch_streamlit_pwa import patcher
+        patcher()
+    except Exception as e:
+        print(f"[PWA] Patch index.html ignore : {e}")
+    return True
+
+
+_patch_pwa_une_fois()
+
 import av
 import cv2
 import numpy as np

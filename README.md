@@ -83,14 +83,10 @@ plutôt qu'une capture d'écran de la page.
 Chrome et Safari ne détectent les balises d'icône que si elles sont présentes dans le
 HTML dès le chargement initial — Streamlit ne permettant pas de modifier son `<head>`
 autrement, ces balises sont insérées directement dans le `index.html` installé avec
-Streamlit via :
-
-```bash
-python patch_streamlit_pwa.py
-```
-
-**À relancer après toute (ré)installation ou mise à jour de Streamlit** (`pip install`
-réécrit ce fichier à chaque fois, effaçant le correctif).
+Streamlit. Ce patch est appliqué **automatiquement au démarrage de `app.py`**
+(`patch_streamlit_pwa.py`, appelé une seule fois par processus via
+`@st.cache_resource`) — aucune action manuelle requise, y compris après une
+réinstallation de Streamlit ou sur Streamlit Community Cloud.
 
 ---
 
