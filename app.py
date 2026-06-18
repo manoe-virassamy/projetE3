@@ -504,15 +504,21 @@ if st.session_state.result is not None:
             # ramène à l'échelle de l'image d'origine avant de chercher la
             # prise la plus proche.
             cx_c, cy_c = click["x"] / _echelle_carte, click["y"] / _echelle_carte
-            best, best_d = 0, float("inf")
-            for i, p in enumerate(st.session_state.prises):
+            # Cherche uniquement parmi les prises affichées sur la carte (le
+            # filtre "Mains+Pieds"/"Pieds" peut en masquer certaines) — sinon
+            # un clic peut sélectionner une prise filtrée invisible plus
+            # proche que la prise visible réellement visée.
+            best_id, best_d = None, float("inf")
+            for p in prises_filtrees:
                 x1, y1, x2, y2 = map(int, p["coords"])
                 d = ((((x1+x2)//2) - cx_c)**2 + (((y1+y2)//2) - cy_c)**2) ** 0.5
                 if d < best_d:
-                    best_d, best = d, i
-            if best != idx_sel:
-                st.session_state.selected_prise_index = best
-                st.rerun()
+                    best_d, best_id = d, p["id"]
+            if best_id is not None:
+                best = next(i for i, p in enumerate(st.session_state.prises) if p["id"] == best_id)
+                if best != idx_sel:
+                    st.session_state.selected_prise_index = best
+                    st.rerun()
 
     else:
         st.write("Aucune prise détectée.")
