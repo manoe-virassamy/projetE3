@@ -18,7 +18,25 @@ from detectionV1 import detect_corps
 from homographie import HomographyWorker, transformer_prises, preparer_reference
 from path import trouver_prises_par_membre
 
-RTC_CONFIGURATION = {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+# STUN seul suffit en local (PC <-> PC sur le même réseau), mais pas pour le
+# déploiement Streamlit Cloud : le conteneur distant et le téléphone sont
+# chacun derrière leur propre NAT/pare-feu, donc la connexion P2P échoue
+# silencieusement (cadre caméra qui reste blanc) sans relais TURN. OpenRelay
+# (metered.ca) est un serveur TURN public gratuit, suffisant pour ce projet.
+RTC_CONFIGURATION = {
+    "iceServers": [
+        {"urls": ["stun:stun.l.google.com:19302"]},
+        {
+            "urls": [
+                "turn:openrelay.metered.ca:80",
+                "turn:openrelay.metered.ca:443",
+                "turn:openrelay.metered.ca:443?transport=tcp",
+            ],
+            "username": "openrelayproject",
+            "credential": "openrelayproject",
+        },
+    ]
+}
 
 # "ideal" plutôt qu'une contrainte stricte : certains navigateurs (notamment
 # Safari/iOS) rejettent la connexion si la caméra arrière demandée n'existe
