@@ -56,7 +56,7 @@ def inject_pwa_tags():
         doc.title = 'BlindClimb Assist';
     })();
     </script>
-    """, height=0, width=0)
+    """, height=1, width=1)
 
 
 def inject_global_css():

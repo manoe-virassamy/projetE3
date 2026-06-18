@@ -75,7 +75,15 @@ LIAISONS_SQUELETTE = [
     (15, 17), (15, 19), (15, 21), (17, 19),
     (16, 18), (16, 20), (16, 22), (18, 20),
 ]
-MARGE_ZONE = 80
+# Zone "grimpeur" : rectangle centré sur les hanches, dont la taille s'adapte
+# à l'écart épaule->cheville (donc à la distance caméra/grimpeur) au lieu d'un
+# carré fixe — repris de l'ancien LiveWorker._loop() du script standalone.
+FACTEUR_DEMI_HAUTEUR = 1.05
+FACTEUR_DEMI_LARGEUR = 0.70
+MARGE_SOUS_PIEDS     = 15
+DEMI_HAUTEUR_DEFAUT  = 220
+DEMI_LARGEUR_DEFAUT  = 100
+
 JAUNE  = (0, 255, 255)
 CYAN   = (255, 255, 0)
 VERT   = (0, 255, 0)
@@ -110,6 +118,7 @@ class LiveProcessor:
         self._last_frame    = None   # dernière frame brute reçue (pour fixer_repere)
         self._last_annotated = None  # dernière frame annotée encodée en JPEG
         self._pose           = AsyncPoseDetector()
+        self._diag_count     = 0  # DEBUG temporaire : compteur pour log throttlé
 
         ref_data        = preparer_reference(ref_img)
         self._orig_w    = ref_data['orig_w']
@@ -177,16 +186,41 @@ class LiveProcessor:
             prises_ref, H, self._orig_w, self._orig_h, live_w, live_h
         )
 
-        # Zone autour du grimpeur (de tous les landmarks visibles)
+        # Zone autour du grimpeur, centrée sur les hanches (23/24) — taille
+        # proportionnelle à l'écart épaule->cheville (11->27, 12->28), donc
+        # adaptative à la distance caméra/grimpeur ; coupée sous les pieds.
+        def _valide(idx):
+            return idx in landmarks_px and landmarks[idx].get("visibility", 1.0) > 0.3
+
+        hanche_centre = None
+        demi_h = DEMI_HAUTEUR_DEFAUT
+        demi_l = DEMI_LARGEUR_DEFAUT
+        h23 = landmarks_px[23] if _valide(23) else None
+        h24 = landmarks_px[24] if _valide(24) else None
+        if h23 and h24:
+            hanche_centre = (int((h23[0] + h24[0]) / 2), int((h23[1] + h24[1]) / 2))
+        elif h23:
+            hanche_centre = h23
+        elif h24:
+            hanche_centre = h24
+
+        if hanche_centre:
+            tailles = []
+            for epaule, cheville in ((11, 27), (12, 28)):
+                if _valide(epaule) and _valide(cheville):
+                    tailles.append(abs(landmarks_px[cheville][1] - landmarks_px[epaule][1]))
+            if tailles:
+                t = max(tailles)
+                demi_h = int(t * FACTEUR_DEMI_HAUTEUR)
+                demi_l = int(t * FACTEUR_DEMI_LARGEUR)
+
+        chevilles_y = [landmarks_px[i][1] for i in (27, 28) if _valide(i)]
+        limite_y_bas = max(chevilles_y) + MARGE_SOUS_PIEDS if chevilles_y else None
+
         zone_courante = None
-        if landmarks_px:
-            xs  = [pt[0] for pt in landmarks_px.values()]
-            ys  = [pt[1] for pt in landmarks_px.values()]
-            zx1 = max(0, min(xs) - MARGE_ZONE)
-            zx2 = min(live_w, max(xs) + MARGE_ZONE)
-            zy1 = max(0, min(ys) - MARGE_ZONE)
-            zy2 = min(live_h, max(ys) + MARGE_ZONE)
-            zone_courante = (int(zx1), int(zy1), int(zx2), int(zy2))
+        if hanche_centre:
+            hx, hy = hanche_centre
+            zone_courante = (hx - demi_l, hy - demi_h, hx + demi_l, hy + demi_h)
 
         prises_visibles = [p for p in prises_live if p['coords'] is not None]
 
@@ -196,6 +230,7 @@ class LiveProcessor:
             prises_affichees = [
                 p for p in prises_visibles
                 if zx1 <= p['coords'][0] <= zx2 and zy1 <= p['coords'][1] <= zy2
+                and (limite_y_bas is None or p['coords'][1] <= limite_y_bas)
             ]
         else:
             prises_affichees = prises_visibles
@@ -215,6 +250,7 @@ class LiveProcessor:
             for y in range(zy1, zy2, dash * 2):
                 cv2.line(frame, (zx1, y), (zx1, min(y + dash, zy2)), (0, 255, 255), 1)
                 cv2.line(frame, (zx2, y), (zx2, min(y + dash, zy2)), (0, 255, 255), 1)
+            cv2.circle(frame, hanche_centre, 5, (0, 255, 255), -1)
 
         # Flèches de guidance (navigation — sur toutes les prises projetées)
         suggestions = {}
@@ -230,6 +266,21 @@ class LiveProcessor:
             self._membres     = dict(membres)
             self._suggestions = dict(suggestions)
 
+        # DEBUG temporaire : 1 ligne/seconde environ, à retirer une fois le
+        # live diagnostiqué (cf. demande utilisateur "ne détecte pas les
+        # prises et la silhouette").
+        self._diag_count += 1
+        if self._diag_count % 30 == 1:
+            print(
+                f"[LIVE-DIAG] frame={live_w}x{live_h} "
+                f"landmarks={'oui' if landmarks else 'non'} "
+                f"landmarks_px={len(landmarks_px)} "
+                f"H={'oui' if H is not None else 'non (fallback echelle)'} "
+                f"prises_ref={len(prises_ref)} "
+                f"prises_visibles={len(prises_visibles)} "
+                f"prises_affichees={len(prises_affichees)}"
+            )
+
         _, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
         with self._frame_lock:
             self._last_annotated = buf.tobytes()
@@ -243,22 +294,26 @@ class LiveProcessor:
     def fixer_repere(self):
         """
         Ancre les prises à la dernière frame live reçue :
-        1. Projette les prises dans la frame live (via H ou fallback).
+        1. Projette les prises dans la frame live (via H, requis — voir ci-dessous).
         2. Ces positions pixel deviennent les nouvelles coordonnées de référence.
         3. La frame courante devient le nouveau référentiel ORB.
         Retourne le nombre de prises correctement ancrées (0 si aucune frame
-        n'est encore arrivée).
+        n'est encore arrivée, ou si le suivi par homographie n'a pas encore
+        verrouillé — sans H valide, la projection retombe sur une simple mise
+        à l'échelle proportionnelle qui suppose un cadrage live identique à la
+        photo de référence ; figer le repère sur cette base donnerait des
+        prises ancrées n'importe où, de façon irréversible).
         """
         with self._frame_lock:
             frame = self._last_frame
-        if frame is None:
+        H = self._hworker.get_H()
+        if frame is None or H is None:
             return 0
         live_h, live_w = frame.shape[:2]
 
         with self._prises_lock:
             prises_ref = list(self._prises_ref)
 
-        H = self._hworker.get_H()
         prises_live = transformer_prises(
             prises_ref, H, self._orig_w, self._orig_h, live_w, live_h
         )

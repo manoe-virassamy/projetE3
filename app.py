@@ -115,17 +115,6 @@ def _generer_guidance(worker):
     return ". ".join(parties) + "."
 
 
-def _on_frame(frame: av.VideoFrame) -> av.VideoFrame:
-    """Callback WebRTC : traite chaque frame poussée par la caméra du
-    navigateur. Relit `live_processor` depuis le session_state à chaque appel
-    (plutôt que de le capturer en fermeture) car la connexion WebRTC persiste
-    entre les reruns Streamlit, qui recréent ce callback à chaque fois."""
-    img = frame.to_ndarray(format="bgr24")
-    processor = st.session_state.get("live_processor")
-    if processor is not None:
-        img = processor.process(img)
-    return av.VideoFrame.from_ndarray(img, format="bgr24")
-
 
 # ==============================================================================
 # INTERFACE PRINCIPALE STREAMLIT
@@ -738,6 +727,20 @@ if st.session_state.prises:
             ]
             st.session_state.live_processor.set_prises(prises_info)
 
+        # `_on_frame` est redéfini à chaque rerun, capturant `_processor`
+        # comme variable de fermeture évaluée ici (thread principal) — et non
+        # via st.session_state.get(...) à l'intérieur du callback, qui
+        # s'exécute dans le thread caméra WebRTC sans ScriptRunContext
+        # Streamlit et ne voit donc jamais la vraie session (renvoie None en
+        # silence, d'où l'absence totale de squelette/prises constatée).
+        _processor = st.session_state.live_processor
+
+        def _on_frame(frame: av.VideoFrame) -> av.VideoFrame:
+            img = frame.to_ndarray(format="bgr24")
+            if _processor is not None:
+                img = _processor.process(img)
+            return av.VideoFrame.from_ndarray(img, format="bgr24")
+
         # Le live tourne sur la caméra du navigateur qui regarde la page (PC ou
         # téléphone), pas sur celle du serveur — `key=` doit rester fixe pour
         # éviter une reconnexion ICE à chaque st.rerun().
@@ -748,6 +751,15 @@ if st.session_state.prises:
             media_stream_constraints=MEDIA_CONSTRAINTS,
             rtc_configuration=RTC_CONFIGURATION,
             async_processing=True,
+            # Démarre automatiquement le flux dès l'activation du live (la
+            # case à cocher est déjà le geste utilisateur) — évite le bouton
+            # Start/Stop natif du composant, redondant et déroutant ici.
+            desired_playing_state=True,
+            # Par défaut streamlit-webrtc affiche les contrôles natifs du
+            # navigateur (lecture/pause/barre de progression/plein écran)
+            # comme pour une vidéo enregistrée — trompeur et source de bugs
+            # sur un flux live (pause n'a pas de sens ici).
+            video_html_attrs={"autoPlay": True, "controls": False, "muted": True, "style": {"width": "100%"}},
         )
         _live_pret = webrtc_ctx.state.playing
 
@@ -769,10 +781,16 @@ if st.session_state.prises:
                          help="Ancre les prises à ce que la caméra voit maintenant. "
                               "Déplacez ensuite la caméra : les prises suivront le mur."):
                 n = st.session_state.live_processor.fixer_repere()
-                st.session_state.message = (
-                    f"Repère fixé — {n} prise(s) ancrée(s). "
-                    "Les prises suivent maintenant le mur."
-                )
+                if n > 0:
+                    st.session_state.message = (
+                        f"Repère fixé — {n} prise(s) ancrée(s). "
+                        "Les prises suivent maintenant le mur."
+                    )
+                else:
+                    st.session_state.message = (
+                        "Suivi du mur pas encore assez stable pour fixer le repère "
+                        "— visez bien le mur quelques secondes et réessayez."
+                    )
                 st.rerun()
         with btn_col:
             if st.button("🔊 Guider", use_container_width=True, disabled=not _live_pret):
