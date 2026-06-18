@@ -35,7 +35,13 @@ RTC_CONFIGURATION = {
             "username": "openrelayproject",
             "credential": "openrelayproject",
         },
-    ]
+    ],
+    # Force le relais TURN directement plutôt que de d'abord tenter une
+    # connexion directe (host/STUN) qui échoue systématiquement sur le
+    # réseau de Streamlit Cloud — cette phase d'essais voués à l'échec fait
+    # traîner la négociation ICE au-delà du temps que Safari iOS patiente
+    # avant d'abandonner (cadre caméra qui reste blanc).
+    "iceTransportPolicy": "relay",
 }
 
 # "ideal" plutôt qu'une contrainte stricte : certains navigateurs (notamment
