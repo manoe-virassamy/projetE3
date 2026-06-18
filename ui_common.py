@@ -27,7 +27,7 @@ def inject_pwa_tags():
     Cloud, où le process applicatif n'a pas les droits d'écriture sur les fichiers
     installés par pip) — voir patch_streamlit_pwa.py pour l'approche par patch
     statique, utilisée en local."""
-    st.components.v1.html("""
+    st.iframe("""
     <script>
     (function() {
         var doc = window.parent.document;
