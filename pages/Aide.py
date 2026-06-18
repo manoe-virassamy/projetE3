@@ -1,9 +1,10 @@
 import streamlit as st
 st.set_page_config(page_title="BlindClimb Assist — Aide", layout="wide", page_icon="Logo.jpg")
 
-from ui_common import inject_global_css, render_banner, render_sidebar_logo, render_section_nav, render_page_nav, tag
+from ui_common import inject_global_css, inject_pwa_tags, render_banner, render_sidebar_logo, render_section_nav, render_page_nav, tag
 
 inject_global_css()
+inject_pwa_tags()
 render_banner(sous_titre="Aide & mots-clés de l'assistant vocal")
 
 with st.sidebar:

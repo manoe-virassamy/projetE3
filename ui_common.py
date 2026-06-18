@@ -20,6 +20,45 @@ def get_logo_b64():
         return base64.b64encode(f.read()).decode()
 
 
+def inject_pwa_tags():
+    """Injecte les balises PWA (manifest, icône, titre) dans le <head> du document
+    parent via JavaScript. Filet de secours pour les environnements où le patch
+    direct de l'index.html de Streamlit est impossible (ex. Streamlit Community
+    Cloud, où le process applicatif n'a pas les droits d'écriture sur les fichiers
+    installés par pip) — voir patch_streamlit_pwa.py pour l'approche par patch
+    statique, utilisée en local."""
+    st.components.v1.html("""
+    <script>
+    (function() {
+        var doc = window.parent.document;
+        if (doc.getElementById('bca-pwa-manifest')) return;
+
+        function lien(rel, href, id) {
+            var l = doc.createElement('link');
+            l.rel = rel;
+            l.href = href;
+            if (id) l.id = id;
+            doc.head.appendChild(l);
+        }
+        function meta(name, content) {
+            var m = doc.createElement('meta');
+            m.name = name;
+            m.content = content;
+            doc.head.appendChild(m);
+        }
+
+        lien('manifest', '/app/static/manifest.json', 'bca-pwa-manifest');
+        lien('apple-touch-icon', '/app/static/icons/apple-touch-icon.png');
+        lien('icon', '/app/static/icons/icon-192.png');
+        meta('apple-mobile-web-app-capable', 'yes');
+        meta('apple-mobile-web-app-title', 'BlindClimb Assist');
+        meta('theme-color', '#C9A020');
+        doc.title = 'BlindClimb Assist';
+    })();
+    </script>
+    """, height=0, width=0)
+
+
 def inject_global_css():
     st.markdown("""
     <style>

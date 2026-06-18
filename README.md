@@ -80,13 +80,19 @@ d'accueil (*Partager → Sur l'écran d'accueil* sur Safari/iPhone, ou menu *⋮
 à l'écran d'accueil* sur Chrome/Android), c'est le logo BCA qui est utilisé comme icône
 plutôt qu'une capture d'écran de la page.
 
-Chrome et Safari ne détectent les balises d'icône que si elles sont présentes dans le
-HTML dès le chargement initial — Streamlit ne permettant pas de modifier son `<head>`
-autrement, ces balises sont insérées directement dans le `index.html` installé avec
-Streamlit. Ce patch est appliqué **automatiquement au démarrage de `app.py`**
-(`patch_streamlit_pwa.py`, appelé une seule fois par processus via
-`@st.cache_resource`) — aucune action manuelle requise, y compris après une
-réinstallation de Streamlit ou sur Streamlit Community Cloud.
+Chrome et Safari ne détectent les balises d'icône de façon fiable que si elles sont
+présentes dans le HTML dès le chargement initial. Deux mécanismes coexistent :
+
+- **En local** : `patch_streamlit_pwa.py` modifie directement le `index.html`
+  installé avec Streamlit (appelé automatiquement au démarrage de `app.py` via
+  `@st.cache_resource`) — aucune action manuelle requise, y compris après une
+  réinstallation de Streamlit.
+- **Sur Streamlit Community Cloud** : ce patch est impossible (le process applicatif
+  tourne avec un utilisateur restreint sans droit d'écriture sur les fichiers
+  installés par pip). À la place, `inject_pwa_tags()` (`ui_common.py`) injecte les
+  mêmes balises en JavaScript dans le `<head>` du document, appelée sur chaque page.
+  Moins garanti que le patch statique pour la détection "Ajouter à l'écran d'accueil",
+  mais c'est la seule option compatible avec les restrictions de la plateforme.
 
 ---
 
