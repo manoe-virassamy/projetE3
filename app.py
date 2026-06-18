@@ -448,46 +448,46 @@ if st.session_state.result is not None:
                 use_container_width=True,
             )
 
-        # ── Construire l'image de la carte avec tous les marqueurs ──────────────
-        img_map = st.session_state.result.copy()
-        idx_sel = min(st.session_state.selected_prise_index, len(st.session_state.prises) - 1)
-        id_sel  = st.session_state.prises[idx_sel]["id"]
-
-        for p in prises_filtrees:
-            x1, y1, x2, y2 = map(int, p["coords"])
-            est_sel = p["id"] == id_sel
-
-            if est_sel:
-                cv2.rectangle(img_map, (x1 - 3, y1 - 3), (x2 + 3, y2 + 3), (255, 255, 255), 3)
-                cv2.rectangle(img_map, (x1, y1), (x2, y2), (0, 0, 230), 3)
-            else:
-                couleur = (0, 190, 0) if p.get("usage") == "Mains+Pieds" else (0, 140, 255)
-                cv2.rectangle(img_map, (x1, y1), (x2, y2), couleur, 2)
-
-            txt_color = (230, 100, 0) if est_sel else (255, 255, 255)
-            cv2.putText(img_map, str(p["id"]),
-                        (x1, y1 - 6), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, txt_color, 2)
-
-        img_rgb = cv2.cvtColor(img_map, cv2.COLOR_BGR2RGB)
-
-        # Réduit l'image envoyée au composant de carte cliquable : une photo
-        # de téléphone en pleine résolution (souvent 3000-4000px de large)
-        # encodée en PNG dans l'iframe du composant dépasse la mémoire de
-        # rendu de Safari iOS, qui affiche alors un espace vide au lieu de
-        # l'image — sans erreur visible. 1000px suffit largement pour cliquer
-        # une prise précisément.
+        # ── Réduire d'abord la photo de base, puis dessiner les marqueurs ────────
+        # dessus (et non l'inverse) : sur une photo de téléphone en pleine
+        # résolution (souvent 3000-4000px de large), des traits dessinés à
+        # épaisseur fixe puis réduits à 1000px deviennent quasi invisibles
+        # (un trait de 3px à l'échelle d'origine finit à <1px affiché). En
+        # dessinant après réduction, l'épaisseur affichée est toujours la
+        # même, quelle que soit la résolution de la photo source.
+        img_base = st.session_state.result
         _CARTE_LARGEUR_MAX = 1000
-        _h_carte, _w_carte = img_rgb.shape[:2]
+        _h_carte, _w_carte = img_base.shape[:2]
         _echelle_carte = min(1.0, _CARTE_LARGEUR_MAX / _w_carte)
         if _echelle_carte < 1.0:
-            img_rgb_affichee = cv2.resize(
-                img_rgb,
+            img_map = cv2.resize(
+                img_base,
                 (int(_w_carte * _echelle_carte), int(_h_carte * _echelle_carte)),
                 interpolation=cv2.INTER_AREA,
             )
         else:
-            img_rgb_affichee = img_rgb
+            img_map = img_base.copy()
+
+        idx_sel = min(st.session_state.selected_prise_index, len(st.session_state.prises) - 1)
+        id_sel  = st.session_state.prises[idx_sel]["id"]
+
+        for p in prises_filtrees:
+            x1, y1, x2, y2 = (round(c * _echelle_carte) for c in p["coords"])
+            est_sel = p["id"] == id_sel
+
+            if est_sel:
+                cv2.rectangle(img_map, (x1 - 4, y1 - 4), (x2 + 4, y2 + 4), (255, 255, 255), 4)
+                cv2.rectangle(img_map, (x1, y1), (x2, y2), (0, 0, 230), 5)
+            else:
+                couleur = (0, 190, 0) if p.get("usage") == "Mains+Pieds" else (0, 140, 255)
+                cv2.rectangle(img_map, (x1, y1), (x2, y2), couleur, 4)
+
+            txt_color = (230, 100, 0) if est_sel else (255, 255, 255)
+            cv2.putText(img_map, str(p["id"]),
+                        (x1, y1 - 6), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6, txt_color, 2)
+
+        img_rgb_affichee = cv2.cvtColor(img_map, cv2.COLOR_BGR2RGB)
 
         # ── Légende ─────────────────────────────────────────────────────────────
         st.markdown(
