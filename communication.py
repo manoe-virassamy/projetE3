@@ -23,6 +23,7 @@ Sur macOS :
 import re
 import sys
 import os
+import io
 import json
 import platform
 import subprocess
@@ -168,20 +169,27 @@ class EcouteurVocal:
     """
 
     def __init__(self):
-        self.sr             = None
-        self.disponible     = False
-        self.derniere_erreur = None   # message d'erreur lisible pour l'UI
+        self.sr                  = None
+        self.disponible          = False   # micro serveur (pyaudio) — CLI uniquement
+        self.disponible_navigateur = False # transcription de WAV envoyés par le navigateur
+        self.derniere_erreur     = None    # message d'erreur lisible pour l'UI
         self._initialiser()
 
     def _initialiser(self):
         try:
             import speech_recognition as sr
-            import pyaudio  # noqa — vérifie juste la présence
-            self.sr         = sr
-            self.disponible = True
+            self.sr = sr
+            self.disponible_navigateur = True
         except ImportError as e:
             print(f"  [Micro] Module manquant : {e}", file=sys.stderr)
-            print("  → pip install SpeechRecognition pyaudio", file=sys.stderr)
+            print("  → pip install SpeechRecognition", file=sys.stderr)
+            return
+
+        try:
+            import pyaudio  # noqa — vérifie juste la présence
+            self.disponible = True
+        except ImportError as e:
+            print(f"  [Micro serveur] pyaudio absent (mode CLI uniquement indisponible) : {e}", file=sys.stderr)
 
     # ----------------------------------------------------------
     #  Écoute unique (utilisée en mode Entrée)
@@ -293,6 +301,28 @@ class EcouteurVocal:
             return "Reconnaissance vocale : SpeechRecognition + Google (fr-FR)"
         return ("Reconnaissance vocale inactive.\n"
                 "  → Pour l'activer : pip install SpeechRecognition pyaudio")
+
+    # ----------------------------------------------------------
+    #  Transcription d'un WAV envoyé par le navigateur (st.audio_input)
+    # ----------------------------------------------------------
+    def transcrire_wav(self, wav_bytes: bytes) -> Optional[str]:
+        """Transcrit un enregistrement WAV reçu du navigateur (PC ou téléphone).
+        Ne dépend pas de pyaudio — utilisable même sans micro serveur."""
+        if not self.disponible_navigateur:
+            return None
+
+        sr  = self.sr
+        rec = sr.Recognizer()
+        self.derniere_erreur = None
+
+        try:
+            with sr.AudioFile(io.BytesIO(wav_bytes)) as source:
+                audio = rec.record(source)
+        except Exception as e:
+            self.derniere_erreur = f"Audio illisible : {e}"
+            return None
+
+        return self._reconnaitre(rec, audio)
 
 
 # ============================================================
