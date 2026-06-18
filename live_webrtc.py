@@ -18,27 +18,12 @@ from detectionV1 import detect_corps
 from homographie import HomographyWorker, transformer_prises, preparer_reference
 from path import trouver_prises_par_membre
 
-# STUN seul ne suffit plus à établir la connexion ICE entre le conteneur
-# Streamlit Cloud et un navigateur (PC ou téléphone) : la caméra démarre
-# (icône active) mais aucune frame ne revient (cadre blanc figé). On ajoute un
-# serveur TURN (OpenRelay, gratuit) en complément du STUN, SANS forcer
-# "iceTransportPolicy: relay" cette fois — contrairement à l'essai précédent,
-# qui interdisait toute autre candidate ICE et cassait la connexion même
-# quand le relais lui-même était indisponible/instable. Ici, le relais n'est
-# qu'une option parmi d'autres : la connexion directe est tentée en premier,
-# le relais sert de filet de secours.
+# STUN simple — config qui fait fonctionner le live sur PC (le téléphone
+# n'est pas pris en charge pour l'instant ; le serveur TURN gratuit testé
+# pour ce cas s'est révélé indisponible/instable et dégradait aussi le PC).
 RTC_CONFIGURATION = {
     "iceServers": [
         {"urls": ["stun:stun.l.google.com:19302"]},
-        {
-            "urls": [
-                "turn:openrelay.metered.ca:80",
-                "turn:openrelay.metered.ca:443",
-                "turn:openrelay.metered.ca:443?transport=tcp",
-            ],
-            "username": "openrelayproject",
-            "credential": "openrelayproject",
-        },
     ],
 }
 
