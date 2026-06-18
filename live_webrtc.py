@@ -18,30 +18,15 @@ from detectionV1 import detect_corps
 from homographie import HomographyWorker, transformer_prises, preparer_reference
 from path import trouver_prises_par_membre
 
-# STUN seul suffit en local (PC <-> PC sur le même réseau), mais pas pour le
-# déploiement Streamlit Cloud : le conteneur distant et le téléphone sont
-# chacun derrière leur propre NAT/pare-feu, donc la connexion P2P échoue
-# silencieusement (cadre caméra qui reste blanc) sans relais TURN. OpenRelay
-# (metered.ca) est un serveur TURN public gratuit, suffisant pour ce projet.
+# STUN seul suffit en local (PC <-> PC sur le même réseau) et c'est aussi ce qui
+# marche sur PC via le déploiement Streamlit Cloud. Le relais TURN OpenRelay
+# (gratuit) et le forçage "iceTransportPolicy: relay" testés pour le téléphone
+# se sont révélés cassser la connexion même sur PC (relais non fiable) — retirés
+# pour l'instant ; le cas téléphone sera retraité séparément.
 RTC_CONFIGURATION = {
     "iceServers": [
         {"urls": ["stun:stun.l.google.com:19302"]},
-        {
-            "urls": [
-                "turn:openrelay.metered.ca:80",
-                "turn:openrelay.metered.ca:443",
-                "turn:openrelay.metered.ca:443?transport=tcp",
-            ],
-            "username": "openrelayproject",
-            "credential": "openrelayproject",
-        },
     ],
-    # Force le relais TURN directement plutôt que de d'abord tenter une
-    # connexion directe (host/STUN) qui échoue systématiquement sur le
-    # réseau de Streamlit Cloud — cette phase d'essais voués à l'échec fait
-    # traîner la négociation ICE au-delà du temps que Safari iOS patiente
-    # avant d'abandonner (cadre caméra qui reste blanc).
-    "iceTransportPolicy": "relay",
 }
 
 # "ideal" plutôt qu'une contrainte stricte : certains navigateurs (notamment
