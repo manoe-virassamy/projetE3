@@ -4,6 +4,8 @@ ultralytics
 mediapipe
 opencv-python-headless
 numpy
+scikit-learn
+requests
 streamlit-image-coordinates
 pyttsx3
 SpeechRecognition
