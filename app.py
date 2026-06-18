@@ -284,9 +284,23 @@ if st.session_state.photo_en_attente is not None:
         # ── Étape 1 : clic pour placer le premier coin ───────────────────────────
         st.info("Cliquez sur le **premier coin** de la zone à recadrer.")
         img_rgb = cv2.cvtColor(img_brut, cv2.COLOR_BGR2RGB)
-        click = streamlit_image_coordinates(img_rgb, key="crop_click_p1", use_column_width="always")
+        # Même limitation que pour la carte cliquable plus bas : une photo de
+        # téléphone en pleine résolution fait planter le rendu du composant
+        # dans Safari iOS (espace vide, sans erreur) — on réduit l'image
+        # envoyée et on remet les coordonnées du clic à l'échelle d'origine.
+        _CROP_LARGEUR_MAX = 1000
+        _echelle_crop = min(1.0, _CROP_LARGEUR_MAX / iw)
+        if _echelle_crop < 1.0:
+            img_rgb_affichee = cv2.resize(
+                img_rgb,
+                (int(iw * _echelle_crop), int(ih * _echelle_crop)),
+                interpolation=cv2.INTER_AREA,
+            )
+        else:
+            img_rgb_affichee = img_rgb
+        click = streamlit_image_coordinates(img_rgb_affichee, key="crop_click_p1", use_column_width="always")
         if click is not None:
-            st.session_state.crop_p1   = (int(click["x"]), int(click["y"]))
+            st.session_state.crop_p1   = (int(click["x"] / _echelle_crop), int(click["y"] / _echelle_crop))
             st.session_state.crop_step = 1
             st.rerun()
 
@@ -457,6 +471,24 @@ if st.session_state.result is not None:
 
         img_rgb = cv2.cvtColor(img_map, cv2.COLOR_BGR2RGB)
 
+        # Réduit l'image envoyée au composant de carte cliquable : une photo
+        # de téléphone en pleine résolution (souvent 3000-4000px de large)
+        # encodée en PNG dans l'iframe du composant dépasse la mémoire de
+        # rendu de Safari iOS, qui affiche alors un espace vide au lieu de
+        # l'image — sans erreur visible. 1000px suffit largement pour cliquer
+        # une prise précisément.
+        _CARTE_LARGEUR_MAX = 1000
+        _h_carte, _w_carte = img_rgb.shape[:2]
+        _echelle_carte = min(1.0, _CARTE_LARGEUR_MAX / _w_carte)
+        if _echelle_carte < 1.0:
+            img_rgb_affichee = cv2.resize(
+                img_rgb,
+                (int(_w_carte * _echelle_carte), int(_h_carte * _echelle_carte)),
+                interpolation=cv2.INTER_AREA,
+            )
+        else:
+            img_rgb_affichee = img_rgb
+
         # ── Légende ─────────────────────────────────────────────────────────────
         st.markdown(
             "<div style='font-size:13px;margin-bottom:6px;'>"
@@ -466,9 +498,12 @@ if st.session_state.result is not None:
         )
 
         # ── Carte cliquable — pleine largeur ────────────────────────────────────
-        click = streamlit_image_coordinates(img_rgb, key="wall_map", use_column_width="always")
+        click = streamlit_image_coordinates(img_rgb_affichee, key="wall_map", use_column_width="always")
         if click is not None:
-            cx_c, cy_c = click["x"], click["y"]
+            # Les coordonnées du clic sont dans l'image réduite — on les
+            # ramène à l'échelle de l'image d'origine avant de chercher la
+            # prise la plus proche.
+            cx_c, cy_c = click["x"] / _echelle_carte, click["y"] / _echelle_carte
             best, best_d = 0, float("inf")
             for i, p in enumerate(st.session_state.prises):
                 x1, y1, x2, y2 = map(int, p["coords"])
