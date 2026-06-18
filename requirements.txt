@@ -1,0 +1,12 @@
+streamlit>=1.58.0
+streamlit-webrtc
+ultralytics
+mediapipe
+opencv-python-headless
+numpy
+streamlit-image-coordinates
+pyttsx3
+SpeechRecognition
+vosk
+cryptography
+edge-tts

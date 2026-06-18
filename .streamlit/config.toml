@@ -1,0 +1,10 @@
+[server]
+# sslCertFile/sslKeyFile : uniquement pour tester en HTTPS sur le réseau local
+# (téléphone + PC). Ne pas activer pour un déploiement (Streamlit Community Cloud
+# et la plupart des hébergeurs gèrent le HTTPS eux-mêmes via leur proxy, et le
+# dossier certs/ n'est pas inclus dans le dépôt — voir .gitignore).
+# Pour retester en local : décommenter ces deux lignes après avoir lancé
+# generate_cert.py.
+# sslCertFile = "certs/cert.pem"
+# sslKeyFile = "certs/key.pem"
+enableStaticServing = true
