@@ -300,7 +300,14 @@ if st.session_state.photo_en_attente is not None:
             img_rgb_affichee = img_rgb
         click = streamlit_image_coordinates(img_rgb_affichee, key="crop_click_p1", use_column_width="always")
         if click is not None:
-            st.session_state.crop_p1   = (int(click["x"] / _echelle_crop), int(click["y"] / _echelle_crop))
+            # Le composant renvoie le clic dans la taille affichée à l'écran
+            # (CSS), pas dans la taille de l'image envoyée — on remonte à
+            # l'échelle d'origine via click["width"]/["height"] (taille
+            # réellement rendue), pas via notre propre facteur de réduction.
+            st.session_state.crop_p1 = (
+                int(click["x"] * (iw / click["width"])),
+                int(click["y"] * (ih / click["height"])),
+            )
             st.session_state.crop_step = 1
             st.rerun()
 
@@ -500,10 +507,15 @@ if st.session_state.result is not None:
         # ── Carte cliquable — pleine largeur ────────────────────────────────────
         click = streamlit_image_coordinates(img_rgb_affichee, key="wall_map", use_column_width="always")
         if click is not None:
-            # Les coordonnées du clic sont dans l'image réduite — on les
-            # ramène à l'échelle de l'image d'origine avant de chercher la
-            # prise la plus proche.
-            cx_c, cy_c = click["x"] / _echelle_carte, click["y"] / _echelle_carte
+            # Le composant renvoie le clic dans la taille AFFICHÉE à l'écran
+            # (CSS, ex. la largeur de la colonne sur mobile), pas dans la
+            # taille de l'image qu'on lui a envoyée — il faut donc se baser
+            # sur click["width"]/["height"] (taille réellement rendue) pour
+            # remonter à l'échelle de l'image d'origine en pixels, plutôt que
+            # sur notre propre facteur de réduction (_echelle_carte), qui ne
+            # correspond pas forcément à la taille d'affichage réelle.
+            cx_c = click["x"] * (_w_carte / click["width"])
+            cy_c = click["y"] * (_h_carte / click["height"])
             # Cherche uniquement parmi les prises affichées sur la carte (le
             # filtre "Mains+Pieds"/"Pieds" peut en masquer certaines) — sinon
             # un clic peut sélectionner une prise filtrée invisible plus
