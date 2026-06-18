@@ -759,7 +759,16 @@ if st.session_state.prises:
             # navigateur (lecture/pause/barre de progression/plein écran)
             # comme pour une vidéo enregistrée — trompeur et source de bugs
             # sur un flux live (pause n'a pas de sens ici).
-            video_html_attrs={"autoPlay": True, "controls": False, "muted": True, "style": {"width": "100%"}},
+            # playsInline est indispensable sur Safari iOS : sans cet
+            # attribut, la vidéo refuse de se lire "en ligne" dans la page
+            # (même muette + autoplay) et le cadre reste blanc.
+            video_html_attrs={
+                "autoPlay": True,
+                "controls": False,
+                "muted": True,
+                "playsInline": True,
+                "style": {"width": "100%"},
+            },
         )
         _live_pret = webrtc_ctx.state.playing
 
