@@ -74,12 +74,13 @@ def _diag_reseau_ice():
 
 _diag_reseau_ice()
 
-# STUN seul échoue systématiquement depuis Streamlit Cloud (logs : retries
-# STUN qui s'épuisent en boucle, ICE jamais négocié, PC et téléphone
-# bloqués) — signe que l'UDP sortant est bloqué/restreint sur cette
-# plateforme. On ajoute donc un relais TURN joignable en TCP sur le port
-# 443 (contrairement à un simple STUN, qui reste en UDP) : ce port est
-# quasiment toujours ouvert en sortie, même quand l'UDP brut ne l'est pas.
+# Le diagnostic [NET-DIAG] a confirme que le STUN UDP marche depuis
+# Streamlit Cloud (donc l'UDP sortant n'est pas bloque), mais que le relais
+# TURN openrelay.metered.ca:443 refuse la connexion : ce service a ete
+# renomme cote Metered.ca vers global.relay.metered.ca (confirme joignable
+# sur les ports 80/443/3478 par le meme diagnostic). On l'utilise donc a la
+# place, toujours en TCP sur le port 443 pour traverser les pare-feux
+# restrictifs eventuels cote client.
 # On NE force PAS iceTransportPolicy="relay" (testé précédemment, cassait
 # aussi les connexions qui auraient pu passer par d'autres voies) — le
 # serveur TURN est seulement proposé en plus, le navigateur choisit la
@@ -89,8 +90,8 @@ RTC_CONFIGURATION = {
         {"urls": ["stun:stun.l.google.com:19302"]},
         {
             "urls": [
-                "turn:openrelay.metered.ca:443?transport=tcp",
-                "turns:openrelay.metered.ca:443?transport=tcp",
+                "turn:global.relay.metered.ca:443?transport=tcp",
+                "turns:global.relay.metered.ca:443?transport=tcp",
             ],
             "username": "openrelayproject",
             "credential": "openrelayproject",
