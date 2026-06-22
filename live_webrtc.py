@@ -40,18 +40,19 @@ def _diag_reseau_ice():
             sock.settimeout(4)
             sock.sendto(paquet, ("stun.l.google.com", 19302))
             data, _ = sock.recvfrom(1024)
-            print(f"[NET-DIAG] STUN UDP stun.l.google.com:19302 -> reponse recue ({len(data)} octets)")
+            print(f"[NET-DIAG] STUN UDP stun.l.google.com:19302 -> reponse recue ({len(data)} octets)", flush=True)
         except Exception as e:
-            print(f"[NET-DIAG] STUN UDP stun.l.google.com:19302 -> ECHEC ({type(e).__name__}: {e})")
+            print(f"[NET-DIAG] STUN UDP stun.l.google.com:19302 -> ECHEC ({type(e).__name__}: {e})", flush=True)
 
     def _test_tcp_turn():
         try:
             sock = socket.create_connection(("openrelay.metered.ca", 443), timeout=4)
             sock.close()
-            print("[NET-DIAG] TCP openrelay.metered.ca:443 -> connexion etablie")
+            print("[NET-DIAG] TCP openrelay.metered.ca:443 -> connexion etablie", flush=True)
         except Exception as e:
-            print(f"[NET-DIAG] TCP openrelay.metered.ca:443 -> ECHEC ({type(e).__name__}: {e})")
+            print(f"[NET-DIAG] TCP openrelay.metered.ca:443 -> ECHEC ({type(e).__name__}: {e})", flush=True)
 
+    print("[NET-DIAG] Lancement des tests reseau STUN/TURN...", flush=True)
     threading.Thread(target=_test_udp_stun, daemon=True).start()
     threading.Thread(target=_test_tcp_turn, daemon=True).start()
 
