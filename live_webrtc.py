@@ -44,17 +44,32 @@ def _diag_reseau_ice():
         except Exception as e:
             print(f"[NET-DIAG] STUN UDP stun.l.google.com:19302 -> ECHEC ({type(e).__name__}: {e})", flush=True)
 
-    def _test_tcp_turn():
+    # openrelay.metered.ca:443 refuse la connexion (confirme via un test
+    # precedent) - le projet OpenRelay a ete renomme cote Metered.ca vers
+    # global.relay.metered.ca. On teste donc les deux domaines sur plusieurs
+    # ports candidats pour trouver un relais TURN qui repond reellement,
+    # sans creer aucun compte (simple test de connexion TCP).
+    _CANDIDATS_TURN = [
+        ("openrelay.metered.ca", 80),
+        ("openrelay.metered.ca", 443),
+        ("openrelay.metered.ca", 3478),
+        ("global.relay.metered.ca", 80),
+        ("global.relay.metered.ca", 443),
+        ("global.relay.metered.ca", 3478),
+    ]
+
+    def _test_tcp_turn(host, port):
         try:
-            sock = socket.create_connection(("openrelay.metered.ca", 443), timeout=4)
+            sock = socket.create_connection((host, port), timeout=4)
             sock.close()
-            print("[NET-DIAG] TCP openrelay.metered.ca:443 -> connexion etablie", flush=True)
+            print(f"[NET-DIAG] TCP {host}:{port} -> connexion etablie", flush=True)
         except Exception as e:
-            print(f"[NET-DIAG] TCP openrelay.metered.ca:443 -> ECHEC ({type(e).__name__}: {e})", flush=True)
+            print(f"[NET-DIAG] TCP {host}:{port} -> ECHEC ({type(e).__name__}: {e})", flush=True)
 
     print("[NET-DIAG] Lancement des tests reseau STUN/TURN...", flush=True)
     threading.Thread(target=_test_udp_stun, daemon=True).start()
-    threading.Thread(target=_test_tcp_turn, daemon=True).start()
+    for _host, _port in _CANDIDATS_TURN:
+        threading.Thread(target=_test_tcp_turn, args=(_host, _port), daemon=True).start()
 
 
 _diag_reseau_ice()
