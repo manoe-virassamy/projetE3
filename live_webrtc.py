@@ -18,12 +18,27 @@ from detectionV1 import detect_corps
 from homographie import HomographyWorker, transformer_prises, preparer_reference
 from path import trouver_prises_par_membre
 
-# STUN simple — config qui fait fonctionner le live sur PC (le téléphone
-# n'est pas pris en charge pour l'instant ; le serveur TURN gratuit testé
-# pour ce cas s'est révélé indisponible/instable et dégradait aussi le PC).
+# STUN seul échoue systématiquement depuis Streamlit Cloud (logs : retries
+# STUN qui s'épuisent en boucle, ICE jamais négocié, PC et téléphone
+# bloqués) — signe que l'UDP sortant est bloqué/restreint sur cette
+# plateforme. On ajoute donc un relais TURN joignable en TCP sur le port
+# 443 (contrairement à un simple STUN, qui reste en UDP) : ce port est
+# quasiment toujours ouvert en sortie, même quand l'UDP brut ne l'est pas.
+# On NE force PAS iceTransportPolicy="relay" (testé précédemment, cassait
+# aussi les connexions qui auraient pu passer par d'autres voies) — le
+# serveur TURN est seulement proposé en plus, le navigateur choisit la
+# première voie qui aboutit.
 RTC_CONFIGURATION = {
     "iceServers": [
         {"urls": ["stun:stun.l.google.com:19302"]},
+        {
+            "urls": [
+                "turn:openrelay.metered.ca:443?transport=tcp",
+                "turns:openrelay.metered.ca:443?transport=tcp",
+            ],
+            "username": "openrelayproject",
+            "credential": "openrelayproject",
+        },
     ],
 }
 
