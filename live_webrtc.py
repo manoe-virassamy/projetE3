@@ -9,6 +9,8 @@ homographie, flèches de guidage) — seule la source des frames change : elles
 arrivent désormais poussées une par une par le callback WebRTC
 (`video_frame_callback`), au lieu d'être tirées d'une webcam locale.
 """
+import socket
+import struct
 import threading
 import time
 
@@ -17,6 +19,44 @@ import cv2
 from detectionV1 import detect_corps
 from homographie import HomographyWorker, transformer_prises, preparer_reference
 from path import trouver_prises_par_membre
+
+
+def _diag_reseau_ice():
+    """DEBUG temporaire — exécuté une fois au démarrage du process serveur.
+
+    Le live échoue systématiquement (négociation ICE qui boucle sur des
+    retries STUN jusqu'à épuisement, cf. logs cloud) sans qu'on puisse dire,
+    à la seule lecture des tracebacks asyncio internes à aioice, si c'est le
+    flux UDP (STUN) qui est bloqué côté hébergement, le flux TCP (TURN) qui
+    l'est aussi, ou autre chose. Ce test fait directement les deux requêtes
+    depuis le serveur et log un résultat sans ambiguïté, à retirer une fois
+    le live diagnostiqué.
+    """
+    def _test_udp_stun():
+        try:
+            transaction_id = b"\x00" * 12
+            paquet = struct.pack("!HHI12s", 0x0001, 0, 0x2112A442, transaction_id)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.settimeout(4)
+            sock.sendto(paquet, ("stun.l.google.com", 19302))
+            data, _ = sock.recvfrom(1024)
+            print(f"[NET-DIAG] STUN UDP stun.l.google.com:19302 -> reponse recue ({len(data)} octets)")
+        except Exception as e:
+            print(f"[NET-DIAG] STUN UDP stun.l.google.com:19302 -> ECHEC ({type(e).__name__}: {e})")
+
+    def _test_tcp_turn():
+        try:
+            sock = socket.create_connection(("openrelay.metered.ca", 443), timeout=4)
+            sock.close()
+            print("[NET-DIAG] TCP openrelay.metered.ca:443 -> connexion etablie")
+        except Exception as e:
+            print(f"[NET-DIAG] TCP openrelay.metered.ca:443 -> ECHEC ({type(e).__name__}: {e})")
+
+    threading.Thread(target=_test_udp_stun, daemon=True).start()
+    threading.Thread(target=_test_tcp_turn, daemon=True).start()
+
+
+_diag_reseau_ice()
 
 # STUN seul échoue systématiquement depuis Streamlit Cloud (logs : retries
 # STUN qui s'épuisent en boucle, ICE jamais négocié, PC et téléphone
