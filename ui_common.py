@@ -62,13 +62,6 @@ def inject_pwa_tags():
 def inject_global_css():
     st.markdown("""
     <style>
-    /* ── Fond général ─────────────────────────────────────────────────────────── */
-    [data-testid="stAppViewContainer"] {
-        background-color: #fafaf7;
-    }
-    [data-testid="stHeader"] {
-        background-color: #fafaf7;
-    }
 
     /* ── Masquer le sélecteur de pages natif (remplacé par notre nav custom) ───── */
     [data-testid="stSidebarNav"] {
@@ -94,6 +87,12 @@ def inject_global_css():
         margin-top: 0.4rem;
         margin-bottom: 0.9rem;
         box-shadow: 0 2px 8px rgba(201, 160, 32, 0.12);
+    }
+    @media (prefers-color-scheme: dark) {
+        h3 {
+            color: #e8dfc0 !important;
+            background: #1a1a14 !important;
+        }
     }
 
     /* ── Séparateurs ──────────────────────────────────────────────────────────── */
@@ -173,6 +172,13 @@ def inject_global_css():
     [data-testid="stSpinner"] svg {
         color: #C9A020 !important;
     }
+    @media (prefers-color-scheme: dark) {
+        [data-testid="stSpinner"] {
+            background: #1c1c1c !important;
+            border-color: #2e2e2e !important;
+        }
+        [data-testid="stSpinner"] p { color: #e0e0e0 !important; }
+    }
 
     /* ── Formulaire assistant ─────────────────────────────────────────────────── */
     [data-testid="stForm"] {
@@ -192,6 +198,16 @@ def inject_global_css():
     [data-testid="stForm"] textarea:focus {
         border-color: #C9A020 !important;
         box-shadow: 0 0 0 3px rgba(201,160,32,0.12) !important;
+    }
+    @media (prefers-color-scheme: dark) {
+        [data-testid="stForm"] {
+            background: #1a1a16 !important;
+            border-color: #2e2a18 !important;
+        }
+        [data-testid="stForm"] textarea {
+            background: #111110 !important;
+            border-color: #3a3020 !important;
+        }
     }
     [data-testid="stForm"] [data-testid="stFormSubmitButton"] button {
         border-radius: 8px !important;

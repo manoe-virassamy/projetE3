@@ -215,6 +215,11 @@ if st.session_state.result is None and st.session_state.photo_en_attente is None
         border: none; background: none; box-shadow: none; padding: 0;
     }}
     .bca-empty p {{ color: #666; font-size: 0.92rem; margin: 0; }}
+    @media (prefers-color-scheme: dark) {{
+        .bca-empty {{ background: #1a1a16 !important; }}
+        .bca-empty h4 {{ color: #e8e0c8 !important; }}
+        .bca-empty p {{ color: #999 !important; }}
+    }}
     </style>
     <div class="bca-empty">
       <h4>📷 Chargez une photo du mur pour commencer</h4>
