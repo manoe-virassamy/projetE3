@@ -28,17 +28,15 @@ SEUIL_HAUT_MIXTE = 0.95
 print("Chargement du modèle YOLOv8 (best.pt)...")
 modele_yolo = YOLO("best.pt")
 
-# "Lite" plutôt que "Heavy" : en mode live, la silhouette doit suivre le
-# grimpeur en temps réel — "Heavy" est plus précis mais trop lent sur CPU,
-# ce qui faisait prendre du retard aux landmarks (silhouette visiblement
-# désynchronisée par rapport à la vidéo, perçu comme de la latence et une
-# mauvaise détection).
-model_path = "pose_landmarker_lite.task"
+# "Heavy" : landmarks plus précis que "Lite", au prix d'un coût CPU plus
+# élevé — accepté malgré le risque de latence/désynchronisation déjà
+# identifié avec ce modèle en mode live.
+model_path = "pose_landmarker_heavy.task"
 try:
     with open(model_path, "rb"): pass
 except FileNotFoundError:
-    print("Téléchargement du modèle MediaPipe Lite...")
-    url = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task"
+    print("Téléchargement du modèle MediaPipe Heavy...")
+    url = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/latest/pose_landmarker_heavy.task"
     urllib.request.urlretrieve(url, model_path)
 
 BaseOptions           = mp.tasks.BaseOptions
