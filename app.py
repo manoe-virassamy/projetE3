@@ -25,7 +25,8 @@ from streamlit_image_coordinates import streamlit_image_coordinates
 from streamlit_webrtc import webrtc_streamer, WebRtcMode
 from live_webrtc import LiveProcessor, RTC_CONFIGURATION, MEDIA_CONSTRAINTS
 from ui_common import (
-    inject_global_css, inject_pwa_tags, render_banner, render_sidebar_logo, render_section_nav, render_page_nav,
+    inject_global_css, inject_pwa_tags, gate_username,
+    render_banner, render_sidebar_logo, render_section_nav, render_page_nav,
     couleur_swatch as _couleur_swatch,
     score_bar as _score_bar,
     badge as _badge,
@@ -121,6 +122,7 @@ def _generer_guidance(worker):
 # ==============================================================================
 inject_global_css()
 inject_pwa_tags()
+gate_username()
 render_banner()
 
 if "message" in st.session_state:

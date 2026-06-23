@@ -20,6 +20,58 @@ def get_logo_b64():
         return base64.b64encode(f.read()).decode()
 
 
+def gate_username():
+    """Bloque la page tant que l'utilisateur n'a pas saisi son prénom.
+    Doit être appelé en tout début de chaque page, avant tout autre contenu."""
+    if st.session_state.get("username"):
+        return
+
+    logo_b64 = get_logo_b64()
+
+    st.markdown("""<style>
+    [data-testid="stAppViewContainer"] {
+        background: linear-gradient(160deg, #0d1a26 0%, #1e2e40 100%) !important;
+    }
+    [data-testid="stHeader"]  { display: none !important; }
+    [data-testid="stSidebar"] { display: none !important; }
+    [data-testid="stForm"] {
+        background: #111518 !important;
+        border: 1.5px solid #2a3040 !important;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+    }
+    </style>""", unsafe_allow_html=True)
+
+    _, col, _ = st.columns([1, 2, 1])
+    with col:
+        st.markdown(f"""
+        <div style='text-align:center;padding:3.5rem 0 1.2rem;'>
+          <img src="data:image/jpeg;base64,{logo_b64}"
+               style="height:88px;border-radius:12px;object-fit:contain;
+                      display:block;margin:0 auto 1.2rem;">
+          <div style='color:#C9A020;font-size:1.95rem;font-weight:800;letter-spacing:0.03em;
+                      text-shadow:0 2px 8px rgba(0,0,0,0.3);'>BlindClimb Assist</div>
+          <div style='color:rgba(255,255,255,0.6);font-size:0.92rem;margin-top:0.35rem;
+                      margin-bottom:1.8rem;font-style:italic;'>
+              La voix qui vous guide pour une montée en confiance</div>
+          <div style='color:rgba(255,255,255,0.82);font-size:1rem;font-weight:600;
+                      margin-bottom:0.6rem;'>Comment souhaitez-vous être appelé(e) ?</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        with st.form("bca_username_form"):
+            nom = st.text_input("prénom", placeholder="Votre prénom…", label_visibility="collapsed")
+            submitted = st.form_submit_button("🧗 Commencer", use_container_width=True, type="primary")
+
+        if submitted:
+            if nom.strip():
+                st.session_state.username = nom.strip()
+                st.rerun()
+            else:
+                st.warning("Veuillez entrer votre prénom pour continuer.")
+
+    st.stop()
+
+
 def inject_pwa_tags():
     """Injecte les balises PWA (manifest, icône, titre) dans le <head> du document
     parent via JavaScript. Filet de secours pour les environnements où le patch
@@ -407,6 +459,12 @@ def inject_global_css():
 
 def render_banner(sous_titre="La voix qui vous guide pour une montée en confiance !"):
     logo_b64 = get_logo_b64()
+    username = st.session_state.get("username", "")
+    user_badge = (
+        f"<span style='background:rgba(201,160,32,0.25);color:#C9A020;font-size:0.78rem;"
+        f"font-weight:700;padding:0.25rem 0.75rem;border-radius:20px;margin-top:0.4rem;"
+        f"display:inline-block;border:1px solid rgba(201,160,32,0.5);'>👤 {username}</span>"
+    ) if username else ""
     st.markdown(f"""
     <div class="bca-banner">
       <img src="data:image/jpeg;base64,{logo_b64}"
@@ -424,6 +482,7 @@ def render_banner(sous_titre="La voix qui vous guide pour une montée en confian
                      font-weight:600;padding:0.3rem 0.8rem;border-radius:20px;
                      letter-spacing:0.04em;border:1px solid rgba(255,255,255,0.3);">
             ESIEE Paris · 2025/2026</span>
+        <br>{user_badge}
       </div>
     </div>
     """, unsafe_allow_html=True)
@@ -435,7 +494,7 @@ def render_sidebar_logo():
         st.markdown(f"""
         <div style='display:flex;align-items:center;gap:0.7rem;
                     background:linear-gradient(135deg,#0D0D0D,#1a1a1a);
-                    border-radius:10px;padding:0.7rem 1rem;margin-bottom:1rem;'>
+                    border-radius:10px;padding:0.7rem 1rem;margin-bottom:0.5rem;'>
           <img src="data:image/jpeg;base64,{logo_b64}"
                style="height:40px;border-radius:6px;object-fit:contain;flex-shrink:0;">
           <div>
@@ -447,10 +506,13 @@ def render_sidebar_logo():
     except Exception:
         st.markdown("""
         <div style='background:linear-gradient(135deg,#0D0D0D,#1a1a1a);
-                    border-radius:10px;padding:0.7rem 1rem;margin-bottom:1rem;'>
+                    border-radius:10px;padding:0.7rem 1rem;margin-bottom:0.5rem;'>
           <span style='color:#C9A020;font-weight:800;font-size:0.9rem;'>🧗 BCA</span>
         </div>
         """, unsafe_allow_html=True)
+    if st.button("↩ Changer de profil", use_container_width=True, key="bca_logout"):
+        st.session_state.username = None
+        st.rerun()
 
 
 def nav_row(href, icon, label):
