@@ -105,14 +105,20 @@ _diag_reseau_ice()
 # Resultat : aucune allocation TURN ne reussissait jamais cote serveur, et
 # "turns:" / le port 80 (qui auraient pu marcher) n'etaient jamais essayes.
 # Comme l'UDP brut fonctionne parfaitement (STUN UDP reussit a chaque test
-# [NET-DIAG]), on repasse sur une unique URL TURN en UDP standard (port 3478,
-# le port dedie au protocole TURN) — plus simple, sans complication TCP/TLS.
+# [NET-DIAG]), on a teste l'UDP standard (port 3478) — mais cette fois la
+# requete ALLOCATE part bien (7 tentatives loguees) sans JAMAIS recevoir de
+# reponse du serveur TURN (contrairement au binding STUN vers Google, qui
+# recoit sa reponse) : l'UDP sortant vers ce serveur/port precis ne semble
+# pas aboutir cote Streamlit Cloud. On repasse donc en TCP, mais sur le port
+# 80 cette fois (pas 443, qui exige une poignee de main TLS comme demontre
+# precedemment) — port 80 = TCP en clair, deja confirme joignable en brut
+# par [NET-DIAG].
 RTC_CONFIGURATION = {
     "iceTransportPolicy": "relay",
     "iceServers": [
         {"urls": ["stun:stun.l.google.com:19302"]},
         {
-            "urls": ["turn:global.relay.metered.ca:3478"],
+            "urls": ["turn:global.relay.metered.ca:80?transport=tcp"],
             "username": "openrelayproject",
             "credential": "openrelayproject",
         },
