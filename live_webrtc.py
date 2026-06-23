@@ -94,31 +94,25 @@ def _diag_reseau_ice():
 
 _diag_reseau_ice()
 
-# Le diagnostic [NET-DIAG] a confirme que le STUN UDP marche depuis
-# Streamlit Cloud (donc l'UDP sortant n'est pas bloque), mais le crash aioice
-# (Transaction.__retry() sur un transport deja ferme) persiste meme apres
-# avoir corrige le TURN et fixe Python 3.12 — ce n'etait donc ni un probleme
-# de TURN injoignable, ni de version Python. Hypothese restante, coherente
-# avec "STUN brut reussit mais l'ICE complete echoue quand meme" : un NAT
-# symetrique cote Streamlit Cloud, qui rend toute tentative de connexion P2P
-# directe vouee a l'echec (l'adresse reflexive vue par le serveur STUN ne
-# correspond pas a celle utilisee vers le vrai pair). Dans ce cas, seul un
-# relai TURN peut fonctionner. On force donc iceTransportPolicy="relay" —
-# deja tente avant, mais a l'epoque le seul TURN configure
-# (openrelay.metered.ca:443) etait injoignable, donc forcer le relais ne
-# laissait alors aucune voie possible. Le TURN actuel
-# (global.relay.metered.ca) est confirme joignable sur 80/443/3478, donc ca
-# vaut le coup de retester avec le relais force.
+# Les logs [ICE-DIAG] (DEBUG aioice/aiortc) ont enfin revele la vraie cause :
+# cote serveur, aiortc ne retient QUE LA PREMIERE uri turn:/turns: de toute la
+# config et ignore silencieusement les suivantes (rtcicetransport.py,
+# connection_kwargs() : "only a single TURN server is supported"). Notre
+# premiere entree etait "turn:global.relay.metered.ca:443?transport=tcp" (TCP
+# en clair, sans TLS) — or les logs montrent la connexion TCP coupee
+# (connection_lost(None)) juste apres l'envoi de la requete ALLOCATE, signe
+# que ce port 443 attend une vraie poignee de main TLS (deguise en HTTPS).
+# Resultat : aucune allocation TURN ne reussissait jamais cote serveur, et
+# "turns:" / le port 80 (qui auraient pu marcher) n'etaient jamais essayes.
+# Comme l'UDP brut fonctionne parfaitement (STUN UDP reussit a chaque test
+# [NET-DIAG]), on repasse sur une unique URL TURN en UDP standard (port 3478,
+# le port dedie au protocole TURN) — plus simple, sans complication TCP/TLS.
 RTC_CONFIGURATION = {
     "iceTransportPolicy": "relay",
     "iceServers": [
         {"urls": ["stun:stun.l.google.com:19302"]},
         {
-            "urls": [
-                "turn:global.relay.metered.ca:443?transport=tcp",
-                "turns:global.relay.metered.ca:443?transport=tcp",
-                "turn:global.relay.metered.ca:80?transport=tcp",
-            ],
+            "urls": ["turn:global.relay.metered.ca:3478"],
             "username": "openrelayproject",
             "credential": "openrelayproject",
         },
