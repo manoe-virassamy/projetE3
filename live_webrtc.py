@@ -119,34 +119,21 @@ def _diag_reseau_ice():
 
 _diag_reseau_ice()
 
-# Les logs [ICE-DIAG] (DEBUG aioice/aiortc) ont enfin revele la vraie cause :
-# cote serveur, aiortc ne retient QUE LA PREMIERE uri turn:/turns: de toute la
-# config et ignore silencieusement les suivantes (rtcicetransport.py,
-# connection_kwargs() : "only a single TURN server is supported"). Notre
-# premiere entree etait "turn:global.relay.metered.ca:443?transport=tcp" (TCP
-# en clair, sans TLS) — or les logs montrent la connexion TCP coupee
-# (connection_lost(None)) juste apres l'envoi de la requete ALLOCATE, signe
-# que ce port 443 attend une vraie poignee de main TLS (deguise en HTTPS).
-# Resultat : aucune allocation TURN ne reussissait jamais cote serveur, et
-# "turns:" / le port 80 (qui auraient pu marcher) n'etaient jamais essayes.
-# Comme l'UDP brut fonctionne parfaitement (STUN UDP reussit a chaque test
-# [NET-DIAG]), on a teste l'UDP standard (port 3478) — mais cette fois la
-# requete ALLOCATE part bien (7 tentatives loguees) sans JAMAIS recevoir de
-# reponse du serveur TURN (contrairement au binding STUN vers Google, qui
-# recoit sa reponse) : l'UDP sortant vers ce serveur/port precis ne semble
-# pas aboutir cote Streamlit Cloud. On repasse donc en TCP, mais sur le port
-# 80 cette fois (pas 443, qui exige une poignee de main TLS comme demontre
-# precedemment) — port 80 = TCP en clair, deja confirme joignable en brut
-# par [NET-DIAG].
+# Les logs [TURN-ERR-DIAG] ont fini par reveler "ERROR-CODE: (400, '')" venant
+# du vrai serveur Metered ("SOFTWARE: METERED-TURN-SERVER") : ce n'est pas un
+# probleme reseau/joignabilite, c'est l'ancien service public gratuit
+# "openrelayproject" (sans inscription) qui n'est plus operationnel — Metered
+# l'a manifestement retire. Sans compte TURN valide, impossible d'avoir un
+# relai qui marche. On retire donc le TURN mort et le forcage
+# iceTransportPolicy="relay" : on laisse l'agent ICE tenter toutes les voies
+# possibles (candidats locaux + reflexifs via STUN, qui sont gratuits et sans
+# inscription) — l'hypothese de NAT symetrique qui justifiait de forcer le
+# relai n'a en realite jamais ete testee/confirmee avec une config TURN
+# fonctionnelle ; testons d'abord le STUN seul avant de conclure qu'un compte
+# TURN est indispensable.
 RTC_CONFIGURATION = {
-    "iceTransportPolicy": "relay",
     "iceServers": [
         {"urls": ["stun:stun.l.google.com:19302"]},
-        {
-            "urls": ["turn:global.relay.metered.ca:80?transport=tcp"],
-            "username": "openrelayproject",
-            "credential": "openrelayproject",
-        },
     ],
 }
 
