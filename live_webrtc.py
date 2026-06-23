@@ -75,23 +75,29 @@ def _diag_reseau_ice():
 _diag_reseau_ice()
 
 # Le diagnostic [NET-DIAG] a confirme que le STUN UDP marche depuis
-# Streamlit Cloud (donc l'UDP sortant n'est pas bloque), mais que le relais
-# TURN openrelay.metered.ca:443 refuse la connexion : ce service a ete
-# renomme cote Metered.ca vers global.relay.metered.ca (confirme joignable
-# sur les ports 80/443/3478 par le meme diagnostic). On l'utilise donc a la
-# place, toujours en TCP sur le port 443 pour traverser les pare-feux
-# restrictifs eventuels cote client.
-# On NE force PAS iceTransportPolicy="relay" (testé précédemment, cassait
-# aussi les connexions qui auraient pu passer par d'autres voies) — le
-# serveur TURN est seulement proposé en plus, le navigateur choisit la
-# première voie qui aboutit.
+# Streamlit Cloud (donc l'UDP sortant n'est pas bloque), mais le crash aioice
+# (Transaction.__retry() sur un transport deja ferme) persiste meme apres
+# avoir corrige le TURN et fixe Python 3.12 — ce n'etait donc ni un probleme
+# de TURN injoignable, ni de version Python. Hypothese restante, coherente
+# avec "STUN brut reussit mais l'ICE complete echoue quand meme" : un NAT
+# symetrique cote Streamlit Cloud, qui rend toute tentative de connexion P2P
+# directe vouee a l'echec (l'adresse reflexive vue par le serveur STUN ne
+# correspond pas a celle utilisee vers le vrai pair). Dans ce cas, seul un
+# relai TURN peut fonctionner. On force donc iceTransportPolicy="relay" —
+# deja tente avant, mais a l'epoque le seul TURN configure
+# (openrelay.metered.ca:443) etait injoignable, donc forcer le relais ne
+# laissait alors aucune voie possible. Le TURN actuel
+# (global.relay.metered.ca) est confirme joignable sur 80/443/3478, donc ca
+# vaut le coup de retester avec le relais force.
 RTC_CONFIGURATION = {
+    "iceTransportPolicy": "relay",
     "iceServers": [
         {"urls": ["stun:stun.l.google.com:19302"]},
         {
             "urls": [
                 "turn:global.relay.metered.ca:443?transport=tcp",
                 "turns:global.relay.metered.ca:443?transport=tcp",
+                "turn:global.relay.metered.ca:80?transport=tcp",
             ],
             "username": "openrelayproject",
             "credential": "openrelayproject",

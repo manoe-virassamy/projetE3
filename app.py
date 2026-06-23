@@ -825,6 +825,16 @@ if st.session_state.prises:
         )
         _live_pret = webrtc_ctx.state.playing
 
+        # DEBUG temporaire : affiche l'état réel de la connexion WebRTC
+        # directement dans l'app (pas besoin des logs cloud) — utile car le
+        # crash aioice qui s'affichait avant a disparu (fix Python 3.12) mais
+        # le live reste un cadre vide, sans aucune erreur dans les logs : on
+        # ne sait pas si l'ICE échoue silencieusement ou si le flux vidéo
+        # n'atteint juste jamais le callback. À retirer une fois diagnostiqué.
+        st.caption(f"🔧 Debug WebRTC : playing={webrtc_ctx.state.playing} | "
+                   f"signalling={getattr(webrtc_ctx.state, 'signalling', '?')} | "
+                   f"state={webrtc_ctx.state}")
+
         # Légende + boutons
         leg_col, repere_col, btn_col = st.columns([4, 1, 1])
         with leg_col:
