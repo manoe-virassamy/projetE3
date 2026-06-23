@@ -9,8 +9,10 @@ homographie, flèches de guidage) — seule la source des frames change : elles
 arrivent désormais poussées une par une par le callback WebRTC
 (`video_frame_callback`), au lieu d'être tirées d'une webcam locale.
 """
+import logging
 import socket
 import struct
+import sys
 import threading
 import time
 
@@ -19,6 +21,24 @@ import cv2
 from detectionV1 import detect_corps
 from homographie import HomographyWorker, transformer_prises, preparer_reference
 from path import trouver_prises_par_membre
+
+# DEBUG temporaire — streamlit_webrtc journalise l'état réel de la connexion
+# ICE (checking/failed/disconnected/connected) via logger.debug(...), jamais
+# affiché par défaut (niveau racine = WARNING). Or c'est précisément ce qui
+# manque : on voit bien que la connexion reste bloquée (signalling=True,
+# playing=False) et qu'une exception de nettoyage aioice survient en boucle,
+# mais jamais pourquoi l'ICE échoue (pas de réponse STUN ? allocation TURN
+# refusée ? aucune paire de candidats valide ?). On active donc le niveau
+# DEBUG sur aioice/aiortc/streamlit_webrtc, avec sortie vers stdout flush
+# immédiat (cf. le souci déjà rencontré de prints non flush dans les logs
+# cloud) — à retirer une fois le live diagnostiqué.
+_diag_handler = logging.StreamHandler(sys.stdout)
+_diag_handler.setFormatter(logging.Formatter("[ICE-DIAG] %(name)s: %(message)s"))
+for _logger_name in ("aioice", "aiortc", "streamlit_webrtc"):
+    _lg = logging.getLogger(_logger_name)
+    _lg.setLevel(logging.DEBUG)
+    _lg.addHandler(_diag_handler)
+    _lg.propagate = False
 
 
 def _diag_reseau_ice():
