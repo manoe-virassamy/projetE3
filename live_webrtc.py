@@ -17,6 +17,7 @@ import threading
 import time
 
 import cv2
+import streamlit as st
 
 from detectionV1 import detect_corps
 from homographie import HomographyWorker, transformer_prises, preparer_reference
@@ -119,23 +120,41 @@ def _diag_reseau_ice():
 
 _diag_reseau_ice()
 
-# Les logs [TURN-ERR-DIAG] ont fini par reveler "ERROR-CODE: (400, '')" venant
-# du vrai serveur Metered ("SOFTWARE: METERED-TURN-SERVER") : ce n'est pas un
-# probleme reseau/joignabilite, c'est l'ancien service public gratuit
-# "openrelayproject" (sans inscription) qui n'est plus operationnel — Metered
-# l'a manifestement retire. Sans compte TURN valide, impossible d'avoir un
-# relai qui marche. On retire donc le TURN mort et le forcage
-# iceTransportPolicy="relay" : on laisse l'agent ICE tenter toutes les voies
-# possibles (candidats locaux + reflexifs via STUN, qui sont gratuits et sans
-# inscription) — l'hypothese de NAT symetrique qui justifiait de forcer le
-# relai n'a en realite jamais ete testee/confirmee avec une config TURN
-# fonctionnelle ; testons d'abord le STUN seul avant de conclure qu'un compte
-# TURN est indispensable.
+# Le test "STUN seul" (sans TURN) a confirme que le P2P direct est impossible
+# depuis Streamlit Community Cloud : aucune des paires de candidats (host LAN,
+# srflx public) ne recoit jamais de reponse aux verifications de connectivite
+# ICE, alors que le binding STUN sortant vers Google, lui, reussit aussitot —
+# signe que l'hebergeur ne laisse passer aucun trafic UDP entrant arbitraire
+# vers le conteneur (seul le HTTPS/WSS sur 443 est proxifie). Un relais TURN
+# est donc structurellement necessaire ici, pas optionnel. L'ancien service
+# public gratuit "openrelayproject" est mort (confirme via [TURN-ERR-DIAG] :
+# ERROR-CODE 400 du vrai serveur Metered, alors que les identifiants etaient
+# bien fournis) ; on utilise donc un compte Metered.ca (gratuit, sans CB), dont
+# la cle va dans les secrets Streamlit Cloud (jamais dans le repo). En local,
+# si les secrets ne sont pas configures, on retombe sur STUN seul (suffisant
+# pour un test sur le meme reseau/LAN).
+def _turn_server():
+    try:
+        username = st.secrets["metered_turn_username"]
+        credential = st.secrets["metered_turn_credential"]
+    except Exception:
+        return None
+    return {
+        "urls": ["turn:global.relay.metered.ca:80?transport=tcp"],
+        "username": username,
+        "credential": credential,
+    }
+
+
+_turn = _turn_server()
 RTC_CONFIGURATION = {
-    "iceServers": [
-        {"urls": ["stun:stun.l.google.com:19302"]},
-    ],
+    "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}] + ([_turn] if _turn else []),
 }
+if _turn:
+    # Les candidats directs (host/srflx) n'aboutissent jamais sur cet
+    # hebergement (cf. plus haut) : forcer "relay" evite d'attendre leur echec
+    # avant de basculer sur le TURN, ce qui accelere la connexion.
+    RTC_CONFIGURATION["iceTransportPolicy"] = "relay"
 
 # "ideal" plutôt qu'une contrainte stricte : certains navigateurs (notamment
 # Safari/iOS) rejettent la connexion si la caméra arrière demandée n'existe
