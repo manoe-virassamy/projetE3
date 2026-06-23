@@ -40,6 +40,31 @@ for _logger_name in ("aioice", "aiortc", "streamlit_webrtc"):
     _lg.addHandler(_diag_handler)
     _lg.propagate = False
 
+# DEBUG temporaire — le serveur TURN répond bien désormais (turn/tcp:80),
+# mais avec une réponse ALLOCATE ERROR ; `aioice` ne journalise jamais le
+# détail (ERROR-CODE / REASON-PHRASE) de cette erreur, seulement
+# "message_class=Class.ERROR". On patche request_with_retry() pour afficher
+# les attributs complets de la réponse d'erreur — sans ça impossible de
+# savoir si c'est un rejet d'identifiants (401/403) ou autre chose.
+import aioice.turn as _aioice_turn  # noqa: E402
+
+_original_request_with_retry = _aioice_turn.TurnClientMixin.request_with_retry
+
+
+async def _patched_request_with_retry(self, request):
+    try:
+        return await _original_request_with_retry(self, request)
+    except Exception as e:
+        resp = getattr(e, "response", None)
+        if resp is not None:
+            print(f"[TURN-ERR-DIAG] {dict(resp.attributes)}", flush=True)
+        else:
+            print(f"[TURN-ERR-DIAG] exception sans response : {type(e).__name__}: {e}", flush=True)
+        raise
+
+
+_aioice_turn.TurnClientMixin.request_with_retry = _patched_request_with_retry
+
 
 def _diag_reseau_ice():
     """DEBUG temporaire — exécuté une fois au démarrage du process serveur.
