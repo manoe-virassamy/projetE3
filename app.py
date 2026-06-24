@@ -23,7 +23,7 @@ from detect import detect_image
 from communication import EcouteurVocal, trouver_reponse
 from streamlit_image_coordinates import streamlit_image_coordinates
 from streamlit_webrtc import webrtc_streamer, WebRtcMode
-from live_webrtc import LiveProcessor, RTC_CONFIGURATION, MEDIA_CONSTRAINTS
+from live_webrtc import LiveProcessor, get_rtc_configuration, MEDIA_CONSTRAINTS
 from ui_common import (
     inject_global_css, inject_pwa_tags, gate_username,
     render_banner, render_sidebar_logo, render_user_section, render_section_nav, render_page_nav,
@@ -835,7 +835,7 @@ if st.session_state.prises:
             mode=WebRtcMode.SENDRECV,
             video_frame_callback=_on_frame,
             media_stream_constraints=MEDIA_CONSTRAINTS,
-            rtc_configuration=RTC_CONFIGURATION,
+            rtc_configuration=get_rtc_configuration(),
             async_processing=True,
             # Démarre automatiquement le flux dès l'activation du live (la
             # case à cocher est déjà le geste utilisateur) — évite le bouton

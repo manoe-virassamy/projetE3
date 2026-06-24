@@ -146,15 +146,22 @@ def _turn_server():
     }
 
 
-_turn = _turn_server()
-RTC_CONFIGURATION = {
-    "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}] + ([_turn] if _turn else []),
-}
-if _turn:
-    # Les candidats directs (host/srflx) n'aboutissent jamais sur cet
-    # hebergement (cf. plus haut) : forcer "relay" evite d'attendre leur echec
-    # avant de basculer sur le TURN, ce qui accelere la connexion.
-    RTC_CONFIGURATION["iceTransportPolicy"] = "relay"
+@st.cache_resource
+def get_rtc_configuration():
+    """Construit la configuration ICE lazily (dans le contexte Streamlit, après
+    initialisation de st.secrets) pour que les credentials TURN soient bien lus.
+    @st.cache_resource garantit un seul calcul par process."""
+    turn = _turn_server()
+    config = {
+        "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}] + ([turn] if turn else []),
+    }
+    if turn:
+        # Les candidats directs (host/srflx) n'aboutissent jamais sur cet
+        # hebergement (cf. plus haut) : forcer "relay" evite d'attendre leur echec
+        # avant de basculer sur le TURN, ce qui accelere la connexion.
+        config["iceTransportPolicy"] = "relay"
+    print(f"[TURN-CONFIG] {'TURN relay configure (mode relay)' if turn else 'STUN seul — pas de TURN'}", flush=True)
+    return config
 
 # "ideal" plutôt qu'une contrainte stricte : certains navigateurs (notamment
 # Safari/iOS) rejettent la connexion si la caméra arrière demandée n'existe
