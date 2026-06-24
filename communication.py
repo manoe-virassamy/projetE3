@@ -425,13 +425,13 @@ REPONSES = [
         "mots_cles": ["combien", "reste", "finir", "fin"],
         "reponse": (
             "Il vous reste ... de prises.\n"
-            "Vous pouvez le faire !"
+            "Vous pouvez le faire{prenom} !"
         )
     },
     {
         "mots_cles": ["bonjour", "salut", "hello", "bonsoir", "coucou"],
         "reponse": (
-            "Bonjour ! Je suis ton assistant escalade pour les personnes aveugles et malvoyantes.\n"
+            "Bonjour{prenom} ! Je suis ton assistant escalade pour les personnes aveugles et malvoyantes.\n"
             "Pose-moi ta question sur la sécurité, l'équipement, les techniques, ou les associations."
         )
     },
@@ -519,13 +519,13 @@ REPONSES = [
     {
         "mots_cles": ["au revoir", "bye", "à bientôt", "a bientot", "merci", "ciao", "tchao", "quitter", "fin", "arrêter", "arreter"],
         "reponse": (
-            "À bientôt !\n"
+            "À bientôt{prenom} !\n"
         )
     },
 ]
 
 REPONSE_DEFAUT = (
-    "Je n'ai pas compris ta question.\n"
+    "Désolé{prenom}, je n'ai pas compris ta question.\n"
     "Parle-moi de : sécurité, équipement, communication, technique, orientation, association, ou vocabulaire"
 )
 
@@ -540,14 +540,15 @@ def normaliser(texte: str) -> str:
     return "".join(c for c in texte if unicodedata.category(c) != "Mn")
 
 
-def trouver_reponse(message: str) -> str:
+def trouver_reponse(message: str, username: str = "") -> str:
     msg_norm = normaliser(message)
     meilleur, meilleure = 0, REPONSE_DEFAUT
     for entree in REPONSES:
         score = sum(1 for m in entree["mots_cles"] if normaliser(m) in msg_norm)
         if score > meilleur:
             meilleur, meilleure = score, entree["reponse"]
-    return meilleure
+    prenom = username.strip()
+    return meilleure.replace("{prenom}", f" {prenom}" if prenom else "")
 
 
 # ============================================================

@@ -53,6 +53,9 @@ _NOMS_FR = {
 }
 
 def _compter_prises_restantes(worker, prises_session, img_h):
+    prenom = st.session_state.get("username", "")
+    appel  = f" {prenom}" if prenom else ""
+
     if not prises_session:
         return "Aucune prise détectée. Lancez d'abord la détection sur une image."
 
@@ -65,7 +68,7 @@ def _compter_prises_restantes(worker, prises_session, img_h):
     membres, _ = worker.get_state()
     ys = [pos[1] for pos in membres.values() if pos is not None]
     if not ys:
-        return (f"Je ne détecte pas votre silhouette. "
+        return (f"Je ne détecte pas votre silhouette{appel}. "
                 f"Il y a {total} prise{'s' if total > 1 else ''} au total.")
 
     # Position normalisée du point le plus haut du grimpeur dans la vidéo (0=sommet)
@@ -80,15 +83,18 @@ def _compter_prises_restantes(worker, prises_session, img_h):
     franchies = total - restantes
 
     if restantes == 0:
-        return f"Bravo ! Vous avez atteint le sommet — {franchies} prise{'s' if franchies > 1 else ''} franchie{'s' if franchies > 1 else ''}."
-    return (f"Il reste {restantes} prise{'s' if restantes > 1 else ''} avant le sommet "
+        return f"Bravo{appel} ! Vous avez atteint le sommet — {franchies} prise{'s' if franchies > 1 else ''} franchie{'s' if franchies > 1 else ''}."
+    return (f"Courage{appel} ! Il reste {restantes} prise{'s' if restantes > 1 else ''} avant le sommet "
             f"({franchies} déjà franchie{'s' if franchies > 1 else ''} sur {total}).")
 
 
 def _generer_guidance(worker):
+    prenom = st.session_state.get("username", "")
+    appel  = f" {prenom}" if prenom else ""
+
     membres, suggestions = worker.get_state()
     if not any(membres.values()):
-        return "Aucune silhouette détectée. Placez-vous devant la caméra."
+        return f"Aucune silhouette détectée{appel}. Placez-vous devant la caméra."
 
     parties = []
     for membre, cible in suggestions.items():
@@ -1017,7 +1023,7 @@ if question_finale:
         else:
             reponse = "Activez le mode live pour que je puisse voir votre position et vous guider."
     else:
-        reponse = trouver_reponse(question_finale)
+        reponse = trouver_reponse(question_finale, st.session_state.get("username", ""))
 
     st.session_state.chat_historique.append({"role": "user",      "content": question_finale})
     st.session_state.chat_historique.append({"role": "assistant", "content": reponse})
