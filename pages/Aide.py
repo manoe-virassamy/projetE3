@@ -54,6 +54,47 @@ st.markdown(_etape_card(5, "🎤", "Assistant vocal",
     unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("#### 📡 Protocole de guidage vocal (FFME / Handisport France)")
+st.markdown("""
+<div style="background:#111111;border:1px solid #2a2a2a;border-radius:12px;
+            padding:1.1rem 1.3rem;margin-bottom:0.8rem;font-size:0.88rem;line-height:1.7;">
+  <div style="color:rgba(255,255,255,0.5);font-size:0.72rem;font-weight:600;
+              letter-spacing:.06em;text-transform:uppercase;margin-bottom:0.6rem;">
+      Format : [Membre] — [Direction] — [Distance]
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;">
+    <div>
+      <div style="color:#C9A020;font-weight:700;margin-bottom:0.3rem;">👐 Membres</div>
+      <div style="color:rgba(255,255,255,0.8);">Main droite · Main gauche</div>
+      <div style="color:rgba(255,255,255,0.8);">Pied droit · Pied gauche</div>
+    </div>
+    <div>
+      <div style="color:#C9A020;font-weight:700;margin-bottom:0.3rem;">🧭 Directions</div>
+      <div style="color:rgba(255,255,255,0.8);">HAUT · BAS · DROITE · GAUCHE</div>
+      <div style="color:rgba(255,255,255,0.55);font-size:0.8rem;">combinables : HAUT DROITE, BAS GAUCHE…</div>
+      <div style="color:rgba(255,255,255,0.8);">DEVANT (prise juste en face)</div>
+    </div>
+    <div>
+      <div style="color:#C9A020;font-weight:700;margin-bottom:0.3rem;">📏 Distances</div>
+      <div style="color:rgba(255,255,255,0.8);">COURT &lt; 20 cm</div>
+      <div style="color:rgba(255,255,255,0.8);">MOYEN 20 – 50 cm</div>
+      <div style="color:rgba(255,255,255,0.8);">LOIN &gt; 50 cm</div>
+    </div>
+    <div>
+      <div style="color:#C9A020;font-weight:700;margin-bottom:0.3rem;">🚦 Signaux</div>
+      <div style="color:rgba(255,255,255,0.8);">RAS — rien à signaler</div>
+      <div style="color:rgba(255,255,255,0.8);">STOP — ne plus bouger</div>
+      <div style="color:rgba(255,255,255,0.8);">OK DESCEND — redescendre</div>
+    </div>
+  </div>
+  <div style="margin-top:0.8rem;padding-top:0.6rem;border-top:1px solid #2a2a2a;
+              color:rgba(255,255,255,0.45);font-size:0.78rem;">
+      Exemple : <span style="color:#e8dfc0;font-style:italic;">
+      « Main droite : haut droite, court. Pied gauche : RAS. »</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
 st.markdown("#### 🎤 Mots-clés utiles pour l'assistant vocal")
 st.caption("Dites ou écrivez une phrase contenant l'un de ces mots — inutile d'utiliser la formule exacte.")
 

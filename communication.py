@@ -461,10 +461,11 @@ REPONSES = [
     {
         "mots_cles": ["assureur", "communiquer", "communication", "guider", "guidage", "instructions", "verbal", "code"],
         "reponse": (
-            "Mettez-vous d'accord sur un code vocal avant de grimper.\n"
-            "Directions : DROITE, GAUCHE, HAUT, BAS.\n"
-            "Distances : PROCHE (< 20 cm), MOYEN (< 50 cm), LOIN.\n"
-            "Sécurité : STOP pour ne plus bouger, OK DESCEND pour redescendre."
+            "Protocole officiel FFME / Handisport France :\n"
+            "Membres : Main droite, Main gauche, Pied droit, Pied gauche.\n"
+            "Directions : HAUT, BAS, DROITE, GAUCHE (combinables : HAUT DROITE, BAS GAUCHE…).\n"
+            "Distances : COURT (< 20 cm), MOYEN (20–50 cm), LOIN (> 50 cm).\n"
+            "Signaux : RAS (rien à signaler), DEVANT (prise en face), STOP (ne plus bouger), OK DESCEND."
         )
     },
     {

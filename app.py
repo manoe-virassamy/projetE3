@@ -105,31 +105,33 @@ def _generer_guidance(worker):
     if not any(membres.values()):
         return f"Aucune silhouette détectée{appel}. Placez-vous devant la caméra."
 
+    import math
     parties = []
     for membre in ordre:
-        cible = suggestions.get(membre)
         if membre not in suggestions:
             continue
-        nom = _NOMS_FR[membre]
+        cible = suggestions[membre]
+        nom   = _NOMS_FR[membre]
         if cible is None:
-            parties.append(f"{nom} : aucune prise à portée")
+            # RAS = rien à signaler (protocole officiel escalade handisport)
+            parties.append(f"{nom} : RAS")
             continue
         pos = membres.get(membre)
         if pos:
-            dx = cible[0] - pos[0]
-            dy = cible[1] - pos[1]
-            dirs = []
+            dx, dy = cible[0] - pos[0], cible[1] - pos[1]
+            # Directions officielles FFME / Handisport
+            composantes = []
             if abs(dy) > 25:
-                dirs.append("en haut" if dy < 0 else "en bas")
+                composantes.append("haut" if dy < 0 else "bas")
             if abs(dx) > 25:
-                dirs.append("à droite" if dx > 0 else "à gauche")
-            direction = " et ".join(dirs) if dirs else "juste devant"
-            import math
-            dist_px = math.hypot(dx, dy)
-            proximite = "très proche" if dist_px < 80 else ("à portée" if dist_px < 160 else "un peu loin")
-            parties.append(f"{nom} : prise {direction}, {proximite}")
+                composantes.append("droite" if dx > 0 else "gauche")
+            direction = " ".join(composantes) if composantes else "devant"
+            # Distances officielles : court / moyen / loin
+            dist_px  = math.hypot(dx, dy)
+            distance = "court" if dist_px < 80 else ("moyen" if dist_px < 160 else "loin")
+            parties.append(f"{nom} : {direction}, {distance}")
         else:
-            parties.append(f"{nom} : prise détectée")
+            parties.append(f"{nom} : RAS")
 
     return ". ".join(parties) + "."
 
