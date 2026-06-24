@@ -5,10 +5,15 @@ st.set_page_config(page_title="BlindClimb Assist", layout="wide", page_icon="Log
 @st.cache_resource
 def _patch_pwa_une_fois():
     try:
-        from patch_streamlit_pwa import patcher
+        from patch_streamlit_pwa import patcher, index_html
+        chemin = index_html()
+        print(f"[PWA] Tentative patch : {chemin} (existe={chemin.exists()}, writable={chemin.stat().st_mode})", flush=True)
         patcher()
+        print("[PWA] Patch applique avec succes.", flush=True)
     except Exception as e:
-        print(f"[PWA] Patch index.html ignore : {e}")
+        import traceback
+        print(f"[PWA] Patch ECHEC : {type(e).__name__}: {e}", flush=True)
+        traceback.print_exc()
     return True
 
 
