@@ -902,6 +902,69 @@ if st.session_state.prises:
                 )
                 st.session_state.pending_speech = texte
                 st.rerun()
+
+        st.components.v1.html("""
+<style>
+#bca-fs-btn {
+    padding: 5px 14px;
+    background: #111;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: sans-serif;
+    margin-top: 2px;
+}
+#bca-fs-btn:hover { background: #333; }
+</style>
+<button id="bca-fs-btn" onclick="bcaToggleFS()">⛶ Plein écran</button>
+<script>
+var _fs = false, _fsFrame = null, _fsOrig = '', _fsExit = null;
+
+function bcaFindFrame() {
+    var iframes = Array.from(window.parent.document.querySelectorAll('iframe'));
+    var f = iframes.find(function(i){ return (i.getAttribute('src')||'').indexOf('webrtc') !== -1; });
+    if (!f) f = iframes.filter(function(i){ return parseInt(i.getAttribute('height')||'0') > 300; }).pop();
+    return f || null;
+}
+
+function bcaToggleFS() {
+    if (_fs) { bcaExit(); } else { bcaEnter(); }
+}
+
+function bcaEnter() {
+    var f = bcaFindFrame();
+    if (!f) return;
+    _fsFrame = f;
+    _fsOrig  = f.getAttribute('style') || '';
+    f.style.cssText = 'position:fixed!important;top:0!important;left:0!important;' +
+        'width:100vw!important;height:100vh!important;z-index:999999!important;' +
+        'border:none!important;background:#000;margin:0!important;';
+    var doc = window.parent.document;
+    var btn = doc.createElement('button');
+    btn.id = 'bca-exit-fs';
+    btn.textContent = '✕ Réduire';
+    btn.style.cssText = 'position:fixed;top:14px;right:14px;z-index:1000000;' +
+        'background:rgba(0,0,0,0.75);color:#fff;border:none;border-radius:8px;' +
+        'padding:8px 18px;font-size:15px;cursor:pointer;font-family:sans-serif;';
+    btn.onclick = bcaExit;
+    doc.body.appendChild(btn);
+    _fsExit = btn;
+    _fs = true;
+    document.getElementById('bca-fs-btn').textContent = '✕ Réduire';
+}
+
+function bcaExit() {
+    if (_fsFrame) { _fsFrame.style.cssText = _fsOrig; _fsFrame = null; }
+    if (_fsExit)  { _fsExit.remove(); _fsExit = null; }
+    _fs = false;
+    var b = document.getElementById('bca-fs-btn');
+    if (b) b.textContent = '⛶ Plein écran';
+}
+</script>
+""", height=40)
+
 else:
     st.markdown("""
     <div style="
