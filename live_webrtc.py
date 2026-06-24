@@ -9,10 +9,6 @@ homographie, flèches de guidage) — seule la source des frames change : elles
 arrivent désormais poussées une par une par le callback WebRTC
 (`video_frame_callback`), au lieu d'être tirées d'une webcam locale.
 """
-import logging
-import socket
-import struct
-import sys
 import threading
 import time
 
@@ -23,116 +19,10 @@ from detectionV1 import detect_corps
 from homographie import HomographyWorker, transformer_prises, preparer_reference
 from path import trouver_prises_par_membre
 
-# DEBUG temporaire — streamlit_webrtc journalise l'état réel de la connexion
-# ICE (checking/failed/disconnected/connected) via logger.debug(...), jamais
-# affiché par défaut (niveau racine = WARNING). Or c'est précisément ce qui
-# manque : on voit bien que la connexion reste bloquée (signalling=True,
-# playing=False) et qu'une exception de nettoyage aioice survient en boucle,
-# mais jamais pourquoi l'ICE échoue (pas de réponse STUN ? allocation TURN
-# refusée ? aucune paire de candidats valide ?). On active donc le niveau
-# DEBUG sur aioice/aiortc/streamlit_webrtc, avec sortie vers stdout flush
-# immédiat (cf. le souci déjà rencontré de prints non flush dans les logs
-# cloud) — à retirer une fois le live diagnostiqué.
-_diag_handler = logging.StreamHandler(sys.stdout)
-_diag_handler.setFormatter(logging.Formatter("[ICE-DIAG] %(name)s: %(message)s"))
-for _logger_name in ("aioice", "aiortc", "streamlit_webrtc"):
-    _lg = logging.getLogger(_logger_name)
-    _lg.setLevel(logging.DEBUG)
-    _lg.addHandler(_diag_handler)
-    _lg.propagate = False
-
-# DEBUG temporaire — le serveur TURN répond bien désormais (turn/tcp:80),
-# mais avec une réponse ALLOCATE ERROR ; `aioice` ne journalise jamais le
-# détail (ERROR-CODE / REASON-PHRASE) de cette erreur, seulement
-# "message_class=Class.ERROR". On patche request_with_retry() pour afficher
-# les attributs complets de la réponse d'erreur — sans ça impossible de
-# savoir si c'est un rejet d'identifiants (401/403) ou autre chose.
-import aioice.turn as _aioice_turn  # noqa: E402
-
-_original_request_with_retry = _aioice_turn.TurnClientMixin.request_with_retry
-
-
-async def _patched_request_with_retry(self, request):
-    try:
-        return await _original_request_with_retry(self, request)
-    except Exception as e:
-        resp = getattr(e, "response", None)
-        if resp is not None:
-            print(f"[TURN-ERR-DIAG] {dict(resp.attributes)}", flush=True)
-        else:
-            print(f"[TURN-ERR-DIAG] exception sans response : {type(e).__name__}: {e}", flush=True)
-        raise
-
-
-_aioice_turn.TurnClientMixin.request_with_retry = _patched_request_with_retry
-
-
-def _diag_reseau_ice():
-    """DEBUG temporaire — exécuté une fois au démarrage du process serveur.
-
-    Le live échoue systématiquement (négociation ICE qui boucle sur des
-    retries STUN jusqu'à épuisement, cf. logs cloud) sans qu'on puisse dire,
-    à la seule lecture des tracebacks asyncio internes à aioice, si c'est le
-    flux UDP (STUN) qui est bloqué côté hébergement, le flux TCP (TURN) qui
-    l'est aussi, ou autre chose. Ce test fait directement les deux requêtes
-    depuis le serveur et log un résultat sans ambiguïté, à retirer une fois
-    le live diagnostiqué.
-    """
-    def _test_udp_stun():
-        try:
-            transaction_id = b"\x00" * 12
-            paquet = struct.pack("!HHI12s", 0x0001, 0, 0x2112A442, transaction_id)
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.settimeout(4)
-            sock.sendto(paquet, ("stun.l.google.com", 19302))
-            data, _ = sock.recvfrom(1024)
-            print(f"[NET-DIAG] STUN UDP stun.l.google.com:19302 -> reponse recue ({len(data)} octets)", flush=True)
-        except Exception as e:
-            print(f"[NET-DIAG] STUN UDP stun.l.google.com:19302 -> ECHEC ({type(e).__name__}: {e})", flush=True)
-
-    # openrelay.metered.ca:443 refuse la connexion (confirme via un test
-    # precedent) - le projet OpenRelay a ete renomme cote Metered.ca vers
-    # global.relay.metered.ca. On teste donc les deux domaines sur plusieurs
-    # ports candidats pour trouver un relais TURN qui repond reellement,
-    # sans creer aucun compte (simple test de connexion TCP).
-    _CANDIDATS_TURN = [
-        ("openrelay.metered.ca", 80),
-        ("openrelay.metered.ca", 443),
-        ("openrelay.metered.ca", 3478),
-        ("global.relay.metered.ca", 80),
-        ("global.relay.metered.ca", 443),
-        ("global.relay.metered.ca", 3478),
-    ]
-
-    def _test_tcp_turn(host, port):
-        try:
-            sock = socket.create_connection((host, port), timeout=4)
-            sock.close()
-            print(f"[NET-DIAG] TCP {host}:{port} -> connexion etablie", flush=True)
-        except Exception as e:
-            print(f"[NET-DIAG] TCP {host}:{port} -> ECHEC ({type(e).__name__}: {e})", flush=True)
-
-    print("[NET-DIAG] Lancement des tests reseau STUN/TURN...", flush=True)
-    threading.Thread(target=_test_udp_stun, daemon=True).start()
-    for _host, _port in _CANDIDATS_TURN:
-        threading.Thread(target=_test_tcp_turn, args=(_host, _port), daemon=True).start()
-
-
-_diag_reseau_ice()
-
-# Le test "STUN seul" (sans TURN) a confirme que le P2P direct est impossible
-# depuis Streamlit Community Cloud : aucune des paires de candidats (host LAN,
-# srflx public) ne recoit jamais de reponse aux verifications de connectivite
-# ICE, alors que le binding STUN sortant vers Google, lui, reussit aussitot —
-# signe que l'hebergeur ne laisse passer aucun trafic UDP entrant arbitraire
-# vers le conteneur (seul le HTTPS/WSS sur 443 est proxifie). Un relais TURN
-# est donc structurellement necessaire ici, pas optionnel. L'ancien service
-# public gratuit "openrelayproject" est mort (confirme via [TURN-ERR-DIAG] :
-# ERROR-CODE 400 du vrai serveur Metered, alors que les identifiants etaient
-# bien fournis) ; on utilise donc un compte Metered.ca (gratuit, sans CB), dont
-# la cle va dans les secrets Streamlit Cloud (jamais dans le repo). En local,
-# si les secrets ne sont pas configures, on retombe sur STUN seul (suffisant
-# pour un test sur le meme reseau/LAN).
+# Streamlit Community Cloud bloque tout UDP entrant — le P2P direct échoue
+# toujours. Un relais TURN (Metered.ca) est nécessaire ; ses credentials sont
+# dans les secrets Streamlit Cloud. En local sans secrets, on retombe sur STUN
+# seul (suffisant sur le même réseau).
 def _turn_server():
     try:
         username = st.secrets["metered_turn_username"]
@@ -261,7 +151,6 @@ class LiveProcessor:
         self._last_frame    = None   # dernière frame brute reçue (pour fixer_repere)
         self._last_annotated = None  # dernière frame annotée encodée en JPEG
         self._pose           = AsyncPoseDetector()
-        self._diag_count     = 0  # DEBUG temporaire : compteur pour log throttlé
 
         ref_data        = preparer_reference(ref_img)
         self._orig_w    = ref_data['orig_w']
@@ -408,21 +297,6 @@ class LiveProcessor:
         with self._state_lock:
             self._membres     = dict(membres)
             self._suggestions = dict(suggestions)
-
-        # DEBUG temporaire : 1 ligne/seconde environ, à retirer une fois le
-        # live diagnostiqué (cf. demande utilisateur "ne détecte pas les
-        # prises et la silhouette").
-        self._diag_count += 1
-        if self._diag_count % 30 == 1:
-            print(
-                f"[LIVE-DIAG] frame={live_w}x{live_h} "
-                f"landmarks={'oui' if landmarks else 'non'} "
-                f"landmarks_px={len(landmarks_px)} "
-                f"H={'oui' if H is not None else 'non (fallback echelle)'} "
-                f"prises_ref={len(prises_ref)} "
-                f"prises_visibles={len(prises_visibles)} "
-                f"prises_affichees={len(prises_affichees)}"
-            )
 
         _, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
         with self._frame_lock:
