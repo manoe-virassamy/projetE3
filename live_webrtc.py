@@ -168,6 +168,7 @@ class LiveProcessor:
     def process(self, frame):
         """Traite une frame brute (BGR) reçue du navigateur et retourne la
         frame annotée (squelette, prises, zone, flèches de guidage)."""
+        frame = cv2.flip(frame, 1)
         live_h, live_w = frame.shape[:2]
 
         with self._frame_lock:
