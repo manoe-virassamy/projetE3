@@ -85,17 +85,24 @@ def inject_pwa_tags():
         var doc = window.parent.document;
         if (doc.getElementById('bca-pwa-manifest')) return;
 
+        // Supprimer les balises Streamlit existantes pour qu'elles ne prennent
+        // pas la priorité sur les nôtres (le navigateur utilise la première
+        // balise <link rel="manifest"> trouvée — il faut retirer celle de
+        // Streamlit avant d'injecter la nôtre).
+        ['link[rel="manifest"]', 'link[rel="apple-touch-icon"]',
+         'link[rel="shortcut icon"]', 'link[rel="icon"]'].forEach(function(sel) {
+            doc.querySelectorAll(sel).forEach(function(el) { el.remove(); });
+        });
+
         function lien(rel, href, id) {
             var l = doc.createElement('link');
-            l.rel = rel;
-            l.href = href;
+            l.rel = rel; l.href = href;
             if (id) l.id = id;
             doc.head.appendChild(l);
         }
         function meta(name, content) {
             var m = doc.createElement('meta');
-            m.name = name;
-            m.content = content;
+            m.name = name; m.content = content;
             doc.head.appendChild(m);
         }
 
