@@ -257,6 +257,13 @@ if st.session_state.result is None and st.session_state.photo_en_attente is None
     </div>
     """, unsafe_allow_html=True)
 
+    _, col_demo, _ = st.columns([1, 2, 1])
+    with col_demo:
+        if st.button("🎯 Charger l'image de démo", use_container_width=True, type="primary"):
+            with open("static/image_demo.jpeg", "rb") as _f:
+                _lancer_detection(_f.read())
+            st.rerun()
+
 tab_fichier, tab_camera = st.tabs(["📁 Choisir un fichier", "📸 Prendre une photo du mur"])
 
 def _stocker_photo(image_bytes: bytes):
