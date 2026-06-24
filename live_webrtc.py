@@ -23,17 +23,18 @@ from path import trouver_prises_par_membre
 # toujours. Un relais TURN (Metered.ca) est nécessaire ; ses credentials sont
 # dans les secrets Streamlit Cloud. En local sans secrets, on retombe sur STUN
 # seul (suffisant sur le même réseau).
-def _turn_server():
+def _turn_servers():
     try:
         username = st.secrets["metered_turn_username"]
         credential = st.secrets["metered_turn_credential"]
     except Exception:
         return None
-    return {
-        "urls": ["turn:global.relay.metered.ca:80?transport=tcp"],
-        "username": username,
-        "credential": credential,
-    }
+    return [
+        {"urls": "turn:standard.relay.metered.ca:80",                    "username": username, "credential": credential},
+        {"urls": "turn:standard.relay.metered.ca:80?transport=tcp",      "username": username, "credential": credential},
+        {"urls": "turn:standard.relay.metered.ca:443",                   "username": username, "credential": credential},
+        {"urls": "turns:standard.relay.metered.ca:443?transport=tcp",    "username": username, "credential": credential},
+    ]
 
 
 @st.cache_resource
@@ -41,16 +42,16 @@ def get_rtc_configuration():
     """Construit la configuration ICE lazily (dans le contexte Streamlit, après
     initialisation de st.secrets) pour que les credentials TURN soient bien lus.
     @st.cache_resource garantit un seul calcul par process."""
-    turn = _turn_server()
+    turns = _turn_servers()
     config = {
-        "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}] + ([turn] if turn else []),
+        "iceServers": [{"urls": "stun:stun.relay.metered.ca:80"}] + (turns if turns else []),
     }
-    if turn:
+    if turns:
         # Les candidats directs (host/srflx) n'aboutissent jamais sur cet
         # hebergement (cf. plus haut) : forcer "relay" evite d'attendre leur echec
         # avant de basculer sur le TURN, ce qui accelere la connexion.
         config["iceTransportPolicy"] = "relay"
-    print(f"[TURN-CONFIG] {'TURN relay configure (mode relay)' if turn else 'STUN seul — pas de TURN'}", flush=True)
+    print(f"[TURN-CONFIG] {'TURN relay configure (mode relay)' if turns else 'STUN seul — pas de TURN'}", flush=True)
     return config
 
 # "ideal" plutôt qu'une contrainte stricte : certains navigateurs (notamment
