@@ -540,7 +540,7 @@ def normaliser(texte: str) -> str:
     return "".join(c for c in texte if unicodedata.category(c) != "Mn")
 
 
-def trouver_reponse(message: str, username: str = "") -> str:
+def trouver_reponse(message: str, username: str = "", niveau: str = "Débutant") -> str:
     msg_norm = normaliser(message)
     meilleur, meilleure = 0, REPONSE_DEFAUT
     for entree in REPONSES:
@@ -548,7 +548,10 @@ def trouver_reponse(message: str, username: str = "") -> str:
         if score > meilleur:
             meilleur, meilleure = score, entree["reponse"]
     prenom = username.strip()
-    return meilleure.replace("{prenom}", f" {prenom}" if prenom else "")
+    reponse = meilleure.replace("{prenom}", f" {prenom}" if prenom else "")
+    if niveau == "Débutant" and meilleure == REPONSE_DEFAUT:
+        reponse += "\nN'hésite pas à reformuler ou à poser une question plus précise !"
+    return reponse
 
 
 # ============================================================

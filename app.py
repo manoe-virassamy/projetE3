@@ -26,7 +26,7 @@ from streamlit_webrtc import webrtc_streamer, WebRtcMode
 from live_webrtc import LiveProcessor, RTC_CONFIGURATION, MEDIA_CONSTRAINTS
 from ui_common import (
     inject_global_css, inject_pwa_tags, gate_username,
-    render_banner, render_sidebar_logo, render_section_nav, render_page_nav,
+    render_banner, render_sidebar_logo, render_user_section, render_section_nav, render_page_nav,
     couleur_swatch as _couleur_swatch,
     score_bar as _score_bar,
     badge as _badge,
@@ -88,16 +88,28 @@ def _compter_prises_restantes(worker, prises_session, img_h):
             f"({franchies} déjà franchie{'s' if franchies > 1 else ''} sur {total}).")
 
 
+_ORDRE_GUIDANCE = {
+    "Droite":   ["main_droite", "pied_droit",  "main_gauche", "pied_gauche"],
+    "Gauche":   ["main_gauche", "pied_gauche", "main_droite", "pied_droit"],
+    "Les deux": ["main_droite", "main_gauche", "pied_droit",  "pied_gauche"],
+}
+
+
 def _generer_guidance(worker):
-    prenom = st.session_state.get("username", "")
-    appel  = f" {prenom}" if prenom else ""
+    prenom   = st.session_state.get("username", "")
+    appel    = f" {prenom}" if prenom else ""
+    main_dom = st.session_state.get("prefs_main", "Les deux")
+    ordre    = _ORDRE_GUIDANCE.get(main_dom, list(_NOMS_FR.keys()))
 
     membres, suggestions = worker.get_state()
     if not any(membres.values()):
         return f"Aucune silhouette détectée{appel}. Placez-vous devant la caméra."
 
     parties = []
-    for membre, cible in suggestions.items():
+    for membre in ordre:
+        cible = suggestions.get(membre)
+        if membre not in suggestions:
+            continue
         nom = _NOMS_FR[membre]
         if cible is None:
             parties.append(f"{nom} : aucune prise à portée")
@@ -552,10 +564,8 @@ if st.session_state.result is not None:
 # SIDEBAR — navigation + état + prises + à propos
 # ==============================================================================
 with st.sidebar:
-    # ── Logo compact ──────────────────────────────────────────────────────────
     render_sidebar_logo()
-
-    # ── Liens de navigation ────────────────────────────────────────────────────
+    render_user_section()
     render_page_nav("accueil")
     render_section_nav()
 
@@ -966,7 +976,7 @@ with col_hist:
     )
 
 with col_form:
-    audio_actif = st.toggle("Réponses audio", value=True)
+    audio_actif = st.session_state.get("prefs_audio", True)
 
     _derniers_assistant = [m for m in st.session_state.chat_historique if m["role"] == "assistant"]
     if _derniers_assistant:
@@ -1023,7 +1033,11 @@ if question_finale:
         else:
             reponse = "Activez le mode live pour que je puisse voir votre position et vous guider."
     else:
-        reponse = trouver_reponse(question_finale, st.session_state.get("username", ""))
+        reponse = trouver_reponse(
+            question_finale,
+            st.session_state.get("username", ""),
+            st.session_state.get("prefs_niveau", "Débutant"),
+        )
 
     st.session_state.chat_historique.append({"role": "user",      "content": question_finale})
     st.session_state.chat_historique.append({"role": "assistant", "content": reponse})

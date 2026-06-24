@@ -494,7 +494,7 @@ def render_sidebar_logo():
         st.markdown(f"""
         <div style='display:flex;align-items:center;gap:0.7rem;
                     background:linear-gradient(135deg,#0D0D0D,#1a1a1a);
-                    border-radius:10px;padding:0.7rem 1rem;margin-bottom:0.5rem;'>
+                    border-radius:10px;padding:0.7rem 1rem;margin-bottom:0.6rem;'>
           <img src="data:image/jpeg;base64,{logo_b64}"
                style="height:40px;border-radius:6px;object-fit:contain;flex-shrink:0;">
           <div>
@@ -506,12 +506,49 @@ def render_sidebar_logo():
     except Exception:
         st.markdown("""
         <div style='background:linear-gradient(135deg,#0D0D0D,#1a1a1a);
-                    border-radius:10px;padding:0.7rem 1rem;margin-bottom:0.5rem;'>
+                    border-radius:10px;padding:0.7rem 1rem;margin-bottom:0.6rem;'>
           <span style='color:#C9A020;font-weight:800;font-size:0.9rem;'>🧗 BCA</span>
         </div>
         """, unsafe_allow_html=True)
+
+
+def render_user_section():
+    """Bloc utilisateur dans la sidebar : avatar, préférences, déconnexion."""
+    username = st.session_state.get("username", "")
+
+    if "prefs_main"   not in st.session_state: st.session_state.prefs_main   = "Les deux"
+    if "prefs_niveau" not in st.session_state: st.session_state.prefs_niveau = "Débutant"
+    if "prefs_audio"  not in st.session_state: st.session_state.prefs_audio  = True
+
+    initiale = username[0].upper() if username else "?"
+    st.markdown(f"""
+    <div style='background:linear-gradient(135deg,#111508,#1a1e08);border:1px solid #3a3a10;
+                border-radius:10px;padding:0.75rem 1rem;margin-bottom:0.5rem;'>
+      <div style='display:flex;align-items:center;gap:0.65rem;'>
+        <div style='width:36px;height:36px;border-radius:50%;background:#C9A020;
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:1rem;font-weight:800;color:#111111;flex-shrink:0;'>
+            {initiale}</div>
+        <div>
+          <div style='color:#e8dfc0;font-weight:700;font-size:0.9rem;line-height:1.15;'>
+              {username}</div>
+          <div style='color:rgba(255,255,255,0.38);font-size:0.67rem;letter-spacing:.05em;
+                      text-transform:uppercase;'>Grimpeur·se</div>
+        </div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    with st.expander("⚙️ Préférences"):
+        st.radio("Main dominante", ["Droite", "Gauche", "Les deux"],
+                 horizontal=True, key="prefs_main")
+        st.radio("Niveau", ["Débutant", "Confirmé"],
+                 horizontal=True, key="prefs_niveau")
+        st.toggle("Retour vocal", key="prefs_audio")
+
     if st.button("↩ Changer de profil", use_container_width=True, key="bca_logout"):
-        st.session_state.username = None
+        for k in [k for k in st.session_state if k in ("username", "prefs_main", "prefs_niveau", "prefs_audio")]:
+            del st.session_state[k]
         st.rerun()
 
 

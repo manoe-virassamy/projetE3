@@ -1,7 +1,7 @@
 import streamlit as st
 st.set_page_config(page_title="BlindClimb Assist — À propos", layout="wide", page_icon="Logo.jpg")
 
-from ui_common import inject_global_css, inject_pwa_tags, gate_username, render_banner, render_sidebar_logo, render_section_nav, render_page_nav
+from ui_common import inject_global_css, inject_pwa_tags, gate_username, render_banner, render_sidebar_logo, render_user_section, render_section_nav, render_page_nav
 
 inject_global_css()
 inject_pwa_tags()
@@ -10,6 +10,7 @@ render_banner(sous_titre="À propos du projet")
 
 with st.sidebar:
     render_sidebar_logo()
+    render_user_section()
     render_page_nav("a_propos")
     render_section_nav(anchor_prefix="/")
 
