@@ -95,6 +95,16 @@ _ORDRE_GUIDANCE = {
 }
 
 
+def _vecteur_en_heure(dx: float, dy: float) -> int:
+    """Convertit un vecteur (dx, dy image) en position d'horloge (1–12).
+    Convention : dy < 0 = vers le haut (12h), dx > 0 = vers la droite (3h).
+    atan2(dx, -dy) donne 0 rad pour le haut, croissant dans le sens horaire."""
+    import math
+    angle_deg = math.degrees(math.atan2(dx, -dy)) % 360
+    heure = round(angle_deg / 30) % 12
+    return heure if heure != 0 else 12
+
+
 def _generer_guidance(worker):
     prenom   = st.session_state.get("username", "")
     appel    = f" {prenom}" if prenom else ""
@@ -113,21 +123,19 @@ def _generer_guidance(worker):
         cible = suggestions[membre]
         nom   = _NOMS_FR[membre]
         if cible is None:
-            # RAS = rien à signaler (protocole officiel escalade handisport)
             parties.append(f"{nom} : RAS")
             continue
         pos = membres.get(membre)
         if pos:
-            dx, dy = cible[0] - pos[0], cible[1] - pos[1]
-            # Directions officielles FFME / Handisport
-            composantes = []
-            if abs(dy) > 25:
-                composantes.append("haut" if dy < 0 else "bas")
-            if abs(dx) > 25:
-                composantes.append("droite" if dx > 0 else "gauche")
-            direction = " ".join(composantes) if composantes else "devant"
-            # Distances officielles : court / moyen / loin
+            dx, dy   = cible[0] - pos[0], cible[1] - pos[1]
             dist_px  = math.hypot(dx, dy)
+            # Direction : système des heures (protocole officiel FFME / Handisport)
+            if dist_px < 20:
+                direction = "en place"
+            else:
+                h = _vecteur_en_heure(dx, dy)
+                direction = f"{h} heure{'s' if h > 1 else ''}"
+            # Distance officielle : court / moyen / loin
             distance = "court" if dist_px < 80 else ("moyen" if dist_px < 160 else "loin")
             parties.append(f"{nom} : {direction}, {distance}")
         else:

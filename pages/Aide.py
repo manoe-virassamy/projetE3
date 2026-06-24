@@ -69,10 +69,10 @@ st.markdown("""
       <div style="color:rgba(255,255,255,0.8);">Pied droit · Pied gauche</div>
     </div>
     <div>
-      <div style="color:#C9A020;font-weight:700;margin-bottom:0.3rem;">🧭 Directions</div>
-      <div style="color:rgba(255,255,255,0.8);">HAUT · BAS · DROITE · GAUCHE</div>
-      <div style="color:rgba(255,255,255,0.55);font-size:0.8rem;">combinables : HAUT DROITE, BAS GAUCHE…</div>
-      <div style="color:rgba(255,255,255,0.8);">DEVANT (prise juste en face)</div>
+      <div style="color:#C9A020;font-weight:700;margin-bottom:0.3rem;">🕐 Direction — système des heures</div>
+      <div style="color:rgba(255,255,255,0.8);">12h = haut &nbsp;·&nbsp; 6h = bas</div>
+      <div style="color:rgba(255,255,255,0.8);">3h = droite &nbsp;·&nbsp; 9h = gauche</div>
+      <div style="color:rgba(255,255,255,0.55);font-size:0.8rem;">ex. 2h = haut-droite, 8h = bas-gauche</div>
     </div>
     <div>
       <div style="color:#C9A020;font-weight:700;margin-bottom:0.3rem;">📏 Distances</div>
@@ -83,6 +83,7 @@ st.markdown("""
     <div>
       <div style="color:#C9A020;font-weight:700;margin-bottom:0.3rem;">🚦 Signaux</div>
       <div style="color:rgba(255,255,255,0.8);">RAS — rien à signaler</div>
+      <div style="color:rgba(255,255,255,0.8);">EN PLACE — prise atteinte</div>
       <div style="color:rgba(255,255,255,0.8);">STOP — ne plus bouger</div>
       <div style="color:rgba(255,255,255,0.8);">OK DESCEND — redescendre</div>
     </div>
@@ -90,7 +91,7 @@ st.markdown("""
   <div style="margin-top:0.8rem;padding-top:0.6rem;border-top:1px solid #2a2a2a;
               color:rgba(255,255,255,0.45);font-size:0.78rem;">
       Exemple : <span style="color:#e8dfc0;font-style:italic;">
-      « Main droite : haut droite, court. Pied gauche : RAS. »</span>
+      « Main droite : 2 heures, court. Pied gauche : RAS. »</span>
   </div>
 </div>
 """, unsafe_allow_html=True)

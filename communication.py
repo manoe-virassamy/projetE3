@@ -463,9 +463,9 @@ REPONSES = [
         "reponse": (
             "Protocole officiel FFME / Handisport France :\n"
             "Membres : Main droite, Main gauche, Pied droit, Pied gauche.\n"
-            "Directions : HAUT, BAS, DROITE, GAUCHE (combinables : HAUT DROITE, BAS GAUCHE…).\n"
+            "Direction : système des heures — 12h = haut, 3h = droite, 6h = bas, 9h = gauche.\n"
             "Distances : COURT (< 20 cm), MOYEN (20–50 cm), LOIN (> 50 cm).\n"
-            "Signaux : RAS (rien à signaler), DEVANT (prise en face), STOP (ne plus bouger), OK DESCEND."
+            "Signaux : RAS (rien à signaler), EN PLACE (prise atteinte), STOP, OK DESCEND."
         )
     },
     {
