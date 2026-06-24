@@ -860,7 +860,7 @@ if st.session_state.prises:
                 "controls": False,
                 "muted": True,
                 "playsInline": True,
-                "style": {"width": "100%"},
+                "style": {"width": "100%", "maxWidth": "1000px"},
             },
         )
         _live_pret = webrtc_ctx.state.playing
