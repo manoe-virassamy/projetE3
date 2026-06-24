@@ -9,17 +9,19 @@ MARGE_MIN   = 20    # distance minimale (prise déjà sous le membre)
 
 def trouver_prises_par_membre(membres, prises):
     """
-    Pour un grimpeur aveugle : retourne la prise atteignable la plus proche
-    pour chaque membre, en respectant :
-      - l'usage  : mains → 'Mains', pieds → 'Pieds'
-      - la portée physique du membre
-      - la direction : mains vers le haut / pieds sous le niveau des mains
+    Pour un grimpeur aveugle : retourne la prise la plus proche dans la bonne
+    direction pour chaque membre.
+
+    Deux passes :
+      1. Dans la portée physique normale (PORTEE_MAIN / PORTEE_PIED).
+      2. Si rien trouvé, recherche sans limite de distance (pour assurer la
+         progression quand le grimpeur a atteint toutes les prises proches).
 
     Paramètres
     ----------
     membres : dict  { 'main_droite' | 'main_gauche' | 'pied_droit' | 'pied_gauche'
                       → (x, y) | None }
-    prises  : list  [ {'coords': (cx, cy), 'usage': 'Mains'|'Pieds'} ]
+    prises  : list  [ {'coords': (cx, cy), 'usage': 'Mains+Pieds'|'Pieds'} ]
 
     Retourne
     --------
@@ -36,41 +38,42 @@ def trouver_prises_par_membre(membres, prises):
         if pos is None:
             continue
 
-        mx, my    = pos
-        est_main  = 'main' in membre
-        usage_ok  = 'Mains+Pieds' if est_main else None   # pieds : toutes les prises (grandes et petites)
-        portee    = PORTEE_MAIN if est_main else PORTEE_PIED
+        mx, my   = pos
+        est_main = 'main' in membre
+        usage_ok = 'Mains+Pieds' if est_main else None
+        portee   = PORTEE_MAIN if est_main else PORTEE_PIED
 
-        meilleur      = None
-        meilleure_dist = float('inf')
+        # Passe 1 : portée normale ; passe 2 : sans limite (progression garantie)
+        for portee_max in (portee, float('inf')):
+            meilleur       = None
+            meilleure_dist = float('inf')
 
-        for p in prises:
-            px, py = p['coords']
+            for p in prises:
+                px, py = p['coords']
 
-            # Mauvais type de prise
-            if usage_ok is not None and p.get('usage', 'Mains') != usage_ok:
-                continue
-
-            dist = math.hypot(px - mx, py - my)
-
-            # Hors portée physique
-            if dist < MARGE_MIN or dist > portee:
-                continue
-
-            if est_main:
-                # Mains : viser uniquement des prises au-dessus ou au niveau
-                # (en escalade on monte, pas on descend)
-                if py > my + 60:
-                    continue
-            else:
-                # Pieds : rester sous le niveau des mains
-                # (jambes fléchies, pieds toujours en dessous des bras)
-                if y_mains is not None and py < y_mains - 30:
+                if usage_ok is not None and p.get('usage', 'Mains+Pieds') != usage_ok:
                     continue
 
-            if dist < meilleure_dist:
-                meilleure_dist = dist
-                meilleur = (px, py)
+                dist = math.hypot(px - mx, py - my)
+
+                if dist < MARGE_MIN or dist > portee_max:
+                    continue
+
+                if est_main:
+                    # Mains : viser uniquement des prises au-dessus ou au niveau
+                    if py > my + 60:
+                        continue
+                else:
+                    # Pieds : rester sous le niveau des mains
+                    if y_mains is not None and py < y_mains - 30:
+                        continue
+
+                if dist < meilleure_dist:
+                    meilleure_dist = dist
+                    meilleur = (px, py)
+
+            if meilleur is not None:
+                break  # passe 1 suffisante, inutile d'élargir
 
         suggestions[membre] = meilleur
 
